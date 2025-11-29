@@ -25,71 +25,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Create project directory
 WORKDIR /var/www/html
 
-# Create composer.json for Open Social 13.0.0-beta2
-# Based on social_template but targeting the specific version
-RUN cat > composer.json << 'EOF'
-{
-    "name": "goalgorilla/social_docker",
-    "description": "Open Social 13.0.0-beta2 Docker build",
-    "type": "project",
-    "license": "GPL-2.0-or-later",
-    "minimum-stability": "beta",
-    "prefer-stable": true,
-    "repositories": [
-        {
-            "type": "composer",
-            "url": "https://packages.drupal.org/8"
-        },
-        {
-            "type": "composer",
-            "url": "https://asset-packagist.org"
-        }
-    ],
-    "require": {
-        "composer/installers": "^2.0",
-        "cweagans/composer-patches": "^1.7",
-        "drupal/core-composer-scaffold": "^10",
-        "goalgorilla/open_social": "13.0.0-beta2",
-        "oomphinc/composer-installers-extender": "^2.0",
-        "drush/drush": "^12 || ^13"
-    },
-    "config": {
-        "allow-plugins": {
-            "composer/installers": true,
-            "cweagans/composer-patches": true,
-            "drupal/core-composer-scaffold": true,
-            "oomphinc/composer-installers-extender": true,
-            "php-http/discovery": true,
-            "phpstan/extension-installer": true,
-            "dealerdirect/phpcodesniffer-composer-installer": true
-        },
-        "sort-packages": true
-    },
-    "extra": {
-        "drupal-scaffold": {
-            "locations": {
-                "web-root": "html/"
-            }
-        },
-        "installer-types": [
-            "bower-asset",
-            "npm-asset"
-        ],
-        "installer-paths": {
-            "html/core": ["type:drupal-core"],
-            "html/libraries/{$name}": [
-                "type:drupal-library",
-                "type:bower-asset",
-                "type:npm-asset"
-            ],
-            "html/modules/contrib/{$name}": ["type:drupal-module"],
-            "html/profiles/contrib/{$name}": ["type:drupal-profile"],
-            "html/themes/contrib/{$name}": ["type:drupal-theme"],
-            "drush/Commands/contrib/{$name}": ["type:drupal-drush"]
-        }
-    }
-}
-EOF
+# Copy composer.json for Open Social 13.0.0-beta2
+COPY composer.json .
 
 # Install dependencies
 RUN composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader
