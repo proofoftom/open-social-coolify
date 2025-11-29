@@ -1,0 +1,52 @@
+services:
+  opensocial:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Database connection
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-opensocial}
+      DB_USER: ${DB_USER:-opensocial}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      # Drupal settings
+      DRUPAL_HASH_SALT: ${DRUPAL_HASH_SALT:-generate-a-random-string-here}
+      DRUPAL_TRUSTED_HOST_PATTERNS: ${DRUPAL_TRUSTED_HOST_PATTERNS:-^localhost$,^127\.0\.0\.1$}
+      DRUPAL_REVERSE_PROXY: "true"
+    volumes:
+      - opensocial_files:/var/www/html/html/sites/default/files
+      - opensocial_private:/var/www/private
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/core/install.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - "coolify.managed=true"
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-opensocial}
+      POSTGRES_USER: ${DB_USER:-opensocial}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-opensocial} -d ${DB_NAME:-opensocial}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  opensocial_files:
+  opensocial_private:
+  postgres_data:
