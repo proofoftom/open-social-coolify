@@ -88,4 +88,41 @@ chown -R www-data:www-data /var/www/html/html/sites/default/files 2>/dev/null ||
 chown -R www-data:www-data /var/www/private 2>/dev/null || true
 chmod 775 /var/www/private
 
+# Auto-install Open Social via Drush if not already installed
+cd /var/www/html
+
+# Check if site is already installed by checking if users table has data
+INSTALLED=$(./vendor/bin/drush sql:query "SELECT COUNT(*) FROM users_field_data" 2>/dev/null || echo "0")
+
+if [ "$INSTALLED" = "0" ] || [ -z "$INSTALLED" ]; then
+    echo "=============================================="
+    echo "Open Social not installed. Running Drush site:install..."
+    echo "=============================================="
+    
+    # Get site name from environment or use default
+    SITE_NAME="${DRUPAL_SITE_NAME:-Open Social}"
+    ADMIN_USER="${DRUPAL_ADMIN_USER:-admin}"
+    ADMIN_PASS="${DRUPAL_ADMIN_PASS:-admin}"
+    ADMIN_EMAIL="${DRUPAL_ADMIN_EMAIL:-admin@example.com}"
+    
+    ./vendor/bin/drush site:install social \
+        --site-name="$SITE_NAME" \
+        --account-name="$ADMIN_USER" \
+        --account-pass="$ADMIN_PASS" \
+        --account-mail="$ADMIN_EMAIL" \
+        --locale=en \
+        -y
+    
+    # Fix permissions after install
+    chown -R www-data:www-data /var/www/html/html/sites/default/files
+    chown -R www-data:www-data /var/www/private
+    
+    echo "=============================================="
+    echo "Open Social installation complete!"
+    echo "Admin user: $ADMIN_USER"
+    echo "=============================================="
+else
+    echo "Open Social already installed, skipping installation."
+fi
+
 exec "$@"
