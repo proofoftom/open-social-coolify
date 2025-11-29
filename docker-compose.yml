@@ -13,8 +13,18 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
       # Drupal settings
       DRUPAL_HASH_SALT: ${DRUPAL_HASH_SALT:-generate-a-random-string-here}
-      DRUPAL_TRUSTED_HOST_PATTERNS: ${DRUPAL_TRUSTED_HOST_PATTERNS:-^localhost$,^127\.0\.0\.1$}
+      DRUPAL_TRUSTED_HOST_PATTERNS: ${DRUPAL_TRUSTED_HOST_PATTERNS:-}
       DRUPAL_REVERSE_PROXY: "true"
+      # Auto-install settings
+      DRUPAL_SITE_NAME: ${DRUPAL_SITE_NAME:-Open Social}
+      DRUPAL_ADMIN_USER: ${DRUPAL_ADMIN_USER:-admin}
+      DRUPAL_ADMIN_PASS: ${DRUPAL_ADMIN_PASS:-admin}
+      DRUPAL_ADMIN_EMAIL: ${DRUPAL_ADMIN_EMAIL:-admin@example.com}
+      # Coolify-provided variables (auto-detected for trusted hosts)
+      SERVICE_FQDN_OPENSOCIAL: ${SERVICE_FQDN_OPENSOCIAL:-}
+      SERVICE_URL_OPENSOCIAL: ${SERVICE_URL_OPENSOCIAL:-}
+      COOLIFY_FQDN: ${COOLIFY_FQDN:-}
+      COOLIFY_URL: ${COOLIFY_URL:-}
     volumes:
       - opensocial_files:/var/www/html/html/sites/default/files
       - opensocial_private:/var/www/private
