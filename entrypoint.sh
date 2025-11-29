@@ -36,10 +36,37 @@ $databases['default']['default'] = [
 // Private file path
 $settings['file_private_path'] = '/var/www/private';
 
-// Trusted host patterns from environment
-if ($trusted_hosts = getenv('DRUPAL_TRUSTED_HOST_PATTERNS')) {
-  $settings['trusted_host_patterns'] = array_filter(array_map('trim', explode(',', $trusted_hosts)));
+// Trusted host patterns - auto-detect from Coolify or use environment variable
+$trusted_patterns = [];
+
+// Check for Coolify-provided FQDN/URL variables
+foreach (['SERVICE_FQDN_OPENSOCIAL', 'SERVICE_URL_OPENSOCIAL', 'COOLIFY_FQDN', 'COOLIFY_URL'] as $env_var) {
+  if ($value = getenv($env_var)) {
+    // Handle comma-separated values (Coolify sometimes provides multiple)
+    foreach (explode(',', $value) as $url) {
+      $url = trim($url);
+      if (empty($url)) continue;
+      // Extract hostname from URL if needed
+      $host = parse_url($url, PHP_URL_HOST) ?: preg_replace('/^https?:\/\//', '', $url);
+      $host = strtolower(trim($host));
+      if (!empty($host)) {
+        $trusted_patterns[] = '^' . preg_quote($host, '/') . '$';
+      }
+    }
+  }
 }
+
+// Also check manual trusted host patterns from environment
+if ($manual_hosts = getenv('DRUPAL_TRUSTED_HOST_PATTERNS')) {
+  $trusted_patterns = array_merge($trusted_patterns, array_filter(array_map('trim', explode(',', $manual_hosts))));
+}
+
+// Always allow localhost for health checks
+$trusted_patterns[] = '^localhost$';
+$trusted_patterns[] = '^127\.0\.0\.1$';
+
+// Remove duplicates and set
+$settings['trusted_host_patterns'] = array_values(array_unique(array_filter($trusted_patterns)));
 
 // Hash salt from environment or generate one
 $settings['hash_salt'] = getenv('DRUPAL_HASH_SALT') ?: hash('sha256', 'change-this-hash-salt-in-production');
