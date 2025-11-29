@@ -3,7 +3,7 @@
     "description": "Open Social 13.0.0-beta2 Docker build",
     "type": "project",
     "license": "GPL-2.0-or-later",
-    "minimum-stability": "beta",
+    "minimum-stability": "alpha",
     "prefer-stable": true,
     "repositories": [
         {
