@@ -1,128 +1,149 @@
 #!/bin/bash
 set -e
 
-SETTINGS_FILE="/var/www/html/html/sites/default/settings.php"
+# Define paths
+DRUPAL_ROOT="/var/www/html/html/web"
+SETTINGS_FILE="$DRUPAL_ROOT/sites/default/settings.php"
+DEFAULT_SETTINGS="$DRUPAL_ROOT/sites/default/default.settings.php"
+FILES_DIR="$DRUPAL_ROOT/sites/default/files"
+PRIVATE_DIR="/var/www/private"
 
-# Wait for database to be ready
-if [ -n "$DB_HOST" ]; then
-    echo "Waiting for database at $DB_HOST:${DB_PORT:-5432}..."
-    timeout=60
-    while ! nc -z "$DB_HOST" "${DB_PORT:-5432}" 2>/dev/null; do
-        timeout=$((timeout - 1))
-        if [ $timeout -le 0 ]; then
-            echo "Database connection timeout!"
-            exit 1
-        fi
-        sleep 1
-    done
-    echo "Database is ready!"
+# Wait for database
+echo "Waiting for database at ${DB_HOST:-postgres}:${DB_PORT:-5432}..."
+while ! nc -z "${DB_HOST:-postgres}" "${DB_PORT:-5432}"; do
+    sleep 1
+done
+echo "Database is ready!"
+
+# Create files directories if they don't exist
+mkdir -p "$FILES_DIR"
+mkdir -p "$PRIVATE_DIR"
+chown -R www-data:www-data "$FILES_DIR"
+chown -R www-data:www-data "$PRIVATE_DIR"
+chmod -R 755 "$FILES_DIR"
+
+# Create settings.php if it doesn't exist
+if [ ! -f "$SETTINGS_FILE" ]; then
+    echo "Creating settings.php..."
+    if [ -f "$DEFAULT_SETTINGS" ]; then
+        cp "$DEFAULT_SETTINGS" "$SETTINGS_FILE"
+        chown www-data:www-data "$SETTINGS_FILE"
+        chmod 644 "$SETTINGS_FILE"
+    else
+        echo "ERROR: default.settings.php not found at $DEFAULT_SETTINGS"
+        exit 1
+    fi
 fi
 
-# Append database configuration if not already present
-if ! grep -q "DATABASE SETTINGS FROM ENVIRONMENT" "$SETTINGS_FILE"; then
-    cat >> "$SETTINGS_FILE" << 'EOPHP'
+# Generate hash salt if not provided
+if [ -z "$DRUPAL_HASH_SALT" ]; then
+    DRUPAL_HASH_SALT=$(openssl rand -hex 32)
+    echo "Generated DRUPAL_HASH_SALT"
+fi
 
-// DATABASE SETTINGS FROM ENVIRONMENT
-$databases['default']['default'] = [
-  'database' => getenv('DB_NAME') ?: 'opensocial',
-  'username' => getenv('DB_USER') ?: 'opensocial',
-  'password' => getenv('DB_PASSWORD') ?: 'opensocial',
-  'host' => getenv('DB_HOST') ?: 'postgres',
-  'port' => getenv('DB_PORT') ?: '5432',
-  'driver' => 'pgsql',
+# Build trusted host patterns
+TRUSTED_HOSTS=""
+if [ -n "$DRUPAL_TRUSTED_HOST_PATTERNS" ]; then
+    IFS=',' read -ra PATTERNS <<< "$DRUPAL_TRUSTED_HOST_PATTERNS"
+    for pattern in "${PATTERNS[@]}"; do
+        TRUSTED_HOSTS="$TRUSTED_HOSTS  '$pattern',\n"
+    done
+fi
+
+# Add Coolify-generated hostnames to trusted hosts
+if [ -n "$COOLIFY_URL" ]; then
+    # Extract hostname from URL
+    COOLIFY_HOST=$(echo "$COOLIFY_URL" | sed -e 's|^[^/]*//||' -e 's|/.*$||' -e 's|:.*$||')
+    COOLIFY_PATTERN=$(echo "$COOLIFY_HOST" | sed 's/\./\\\\./g')
+    TRUSTED_HOSTS="$TRUSTED_HOSTS  '^${COOLIFY_PATTERN}\$',\n"
+fi
+
+# Always allow localhost
+TRUSTED_HOSTS="$TRUSTED_HOSTS  '^localhost\$',\n"
+TRUSTED_HOSTS="$TRUSTED_HOSTS  '^127\\\\.0\\\\.0\\\\.1\$',\n"
+
+# Append database and other settings to settings.php if not already configured
+if ! grep -q "Added by entrypoint" "$SETTINGS_FILE" 2>/dev/null; then
+    echo "Configuring settings.php..."
+    cat >> "$SETTINGS_FILE" << SETTINGS
+
+// Added by entrypoint
+\$databases['default']['default'] = [
+  'database' => '${DB_NAME:-opensocial}',
+  'username' => '${DB_USER:-opensocial}',
+  'password' => '${DB_PASSWORD}',
   'prefix' => '',
+  'host' => '${DB_HOST:-postgres}',
+  'port' => '${DB_PORT:-5432}',
+  'isolation_level' => 'READ COMMITTED',
+  'driver' => 'pgsql',
+  'namespace' => 'Drupal\\pgsql\\Driver\\Database\\pgsql',
+  'autoload' => 'core/modules/pgsql/src/Driver/Database/pgsql/',
 ];
 
-// Private file path
-$settings['file_private_path'] = '/var/www/private';
+\$settings['hash_salt'] = '${DRUPAL_HASH_SALT}';
+\$settings['config_sync_directory'] = '../config/sync';
+\$settings['file_private_path'] = '${PRIVATE_DIR}';
 
-// Trusted host patterns - auto-detect from Coolify or use environment variable
-$trusted_patterns = [];
-
-// Check for Coolify-provided FQDN/URL variables
-foreach (['SERVICE_FQDN_OPENSOCIAL', 'SERVICE_URL_OPENSOCIAL', 'COOLIFY_FQDN', 'COOLIFY_URL'] as $env_var) {
-  if ($value = getenv($env_var)) {
-    // Handle comma-separated values (Coolify sometimes provides multiple)
-    foreach (explode(',', $value) as $url) {
-      $url = trim($url);
-      if (empty($url)) continue;
-      // Extract hostname from URL if needed
-      $host = parse_url($url, PHP_URL_HOST) ?: preg_replace('/^https?:\/\//', '', $url);
-      $host = strtolower(trim($host));
-      if (!empty($host)) {
-        $trusted_patterns[] = '^' . preg_quote($host, '/') . '$';
-      }
-    }
-  }
-}
-
-// Also check manual trusted host patterns from environment
-if ($manual_hosts = getenv('DRUPAL_TRUSTED_HOST_PATTERNS')) {
-  $trusted_patterns = array_merge($trusted_patterns, array_filter(array_map('trim', explode(',', $manual_hosts))));
-}
-
-// Always allow localhost for health checks
-$trusted_patterns[] = '^localhost$';
-$trusted_patterns[] = '^127\.0\.0\.1$';
-
-// Remove duplicates and set
-$settings['trusted_host_patterns'] = array_values(array_unique(array_filter($trusted_patterns)));
-
-// Hash salt from environment or generate one
-$settings['hash_salt'] = getenv('DRUPAL_HASH_SALT') ?: hash('sha256', 'change-this-hash-salt-in-production');
-
-// Config sync directory
-$settings['config_sync_directory'] = '../config/sync';
+\$settings['trusted_host_patterns'] = [
+$(echo -e "$TRUSTED_HOSTS")];
 
 // Reverse proxy settings for Coolify/Traefik
-if (getenv('DRUPAL_REVERSE_PROXY')) {
-  $settings['reverse_proxy'] = TRUE;
-  $settings['reverse_proxy_addresses'] = ['127.0.0.1', '172.16.0.0/12', '192.168.0.0/16', '10.0.0.0/8'];
-  $settings['reverse_proxy_trusted_headers'] = \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_FOR | \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_HOST | \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_PORT | \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_PROTO;
+if (${DRUPAL_REVERSE_PROXY:-true}) {
+  \$settings['reverse_proxy'] = TRUE;
+  \$settings['reverse_proxy_addresses'] = ['127.0.0.1', '172.16.0.0/12', '192.168.0.0/16', '10.0.0.0/8'];
+  \$settings['reverse_proxy_trusted_headers'] = 
+    \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_FOR |
+    \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_PROTO |
+    \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_PORT;
 }
-EOPHP
+SETTINGS
+    chown www-data:www-data "$SETTINGS_FILE"
 fi
 
-# Ensure proper permissions
-chown -R www-data:www-data /var/www/html/html/sites/default/files 2>/dev/null || true
-chown -R www-data:www-data /var/www/private 2>/dev/null || true
-chmod 775 /var/www/private
+# Check if Drupal is already installed
+cd "$DRUPAL_ROOT"
 
-# Auto-install Open Social via Drush if not already installed
-cd /var/www/html
+SITE_INSTALLED=$(../vendor/bin/drush status --field=bootstrap 2>/dev/null || echo "")
 
-# Check if site is already installed by checking if users table has data
-INSTALLED=$(./vendor/bin/drush sql:query "SELECT COUNT(*) FROM users_field_data" 2>/dev/null || echo "0")
-
-if [ "$INSTALLED" = "0" ] || [ -z "$INSTALLED" ]; then
+if [ "$SITE_INSTALLED" != "Successful" ]; then
     echo "=============================================="
     echo "Open Social not installed. Running Drush site:install..."
     echo "=============================================="
     
-    # Get site name from environment or use default
-    SITE_NAME="${DRUPAL_SITE_NAME:-Open Social}"
-    ADMIN_USER="${DRUPAL_ADMIN_USER:-admin}"
-    ADMIN_PASS="${DRUPAL_ADMIN_PASS:-admin}"
-    ADMIN_EMAIL="${DRUPAL_ADMIN_EMAIL:-admin@example.com}"
-    
-    ./vendor/bin/drush site:install social \
-        --site-name="$SITE_NAME" \
-        --account-name="$ADMIN_USER" \
-        --account-pass="$ADMIN_PASS" \
-        --account-mail="$ADMIN_EMAIL" \
+    # Run site install
+    ../vendor/bin/drush site:install social \
+        --db-url="pgsql://${DB_USER:-opensocial}:${DB_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT:-5432}/${DB_NAME:-opensocial}" \
+        --site-name="${DRUPAL_SITE_NAME:-Open Social}" \
+        --account-name="${DRUPAL_ADMIN_USER:-admin}" \
+        --account-pass="${DRUPAL_ADMIN_PASS:-admin}" \
+        --account-mail="${DRUPAL_ADMIN_EMAIL:-admin@example.com}" \
         --locale=en \
         -y
     
-    # Fix permissions after install
-    chown -R www-data:www-data /var/www/html/html/sites/default/files
-    chown -R www-data:www-data /var/www/private
-    
     echo "=============================================="
     echo "Open Social installation complete!"
-    echo "Admin user: $ADMIN_USER"
     echo "=============================================="
 else
     echo "Open Social already installed, skipping installation."
 fi
 
+# Ensure proper permissions after install
+chown -R www-data:www-data "$FILES_DIR"
+chown -R www-data:www-data "$PRIVATE_DIR"
+
+# Run any pending database updates
+echo "Running database updates..."
+cd "$DRUPAL_ROOT"
+../vendor/bin/drush updatedb -y || true
+
+# Clear cache
+echo "Clearing cache..."
+../vendor/bin/drush cache:rebuild || true
+
+echo "=============================================="
+echo "Starting Apache..."
+echo "=============================================="
+
+# Execute the main container command (apache)
 exec "$@"
