@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     netcat-traditional \
-    mysql-client \
+    mariadb-client \
     openssl \
     && rm -rf /var/lib/apt/lists/*
 
