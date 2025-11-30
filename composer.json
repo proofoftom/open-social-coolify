@@ -56,6 +56,8 @@
             "html/profiles/contrib/{$name}": ["type:drupal-profile"],
             "html/themes/contrib/{$name}": ["type:drupal-theme"],
             "drush/Commands/contrib/{$name}": ["type:drupal-drush"]
-        }
+        },
+        "enable-patching": true,
+        "composer-exit-on-patch-failure": true,
     }
 }
