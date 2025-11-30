@@ -11,8 +11,8 @@ FILES_DIR="$DRUPAL_ROOT/sites/default/files"
 PRIVATE_DIR="/var/www/private"
 
 # Wait for database
-echo "Waiting for database at ${DB_HOST:-postgres}:${DB_PORT:-5432}..."
-while ! nc -z "${DB_HOST:-postgres}" "${DB_PORT:-5432}"; do
+echo "Waiting for database at ${DB_HOST:-mariadb}:${DB_PORT:-3306}..."
+while ! nc -z "${DB_HOST:-mariadb}" "${DB_PORT:-3306}"; do
     sleep 1
 done
 echo "Database is ready!"
@@ -75,12 +75,11 @@ if ! grep -q "Added by entrypoint" "$SETTINGS_FILE" 2>/dev/null; then
   'username' => '${DB_USER:-opensocial}',
   'password' => '${DB_PASSWORD}',
   'prefix' => '',
-  'host' => '${DB_HOST:-postgres}',
-  'port' => '${DB_PORT:-5432}',
-  'isolation_level' => 'READ COMMITTED',
-  'driver' => 'pgsql',
-  'namespace' => 'Drupal\\pgsql\\Driver\\Database\\pgsql',
-  'autoload' => 'core/modules/pgsql/src/Driver/Database/pgsql/',
+  'host' => '${DB_HOST:-mariadb}',
+  'port' => '${DB_PORT:-3306}',
+  'driver' => 'mysql',
+  'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
+  'autoload' => 'core/lib/Drupal/Core/Database/Driver/mysql/',
 ];
 
 \$settings['hash_salt'] = '${DRUPAL_HASH_SALT}';
@@ -115,7 +114,7 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
 
     # Run site install
     $DRUSH site:install social \
-        --db-url="pgsql://${DB_USER:-opensocial}:${DB_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT:-5432}/${DB_NAME:-opensocial}" \
+        --db-url="mysql://${DB_USER:-opensocial}:${DB_PASSWORD}@${DB_HOST:-mariadb}:${DB_PORT:-3306}/${DB_NAME:-opensocial}" \
         --site-name="${DRUPAL_SITE_NAME:-Open Social}" \
         --account-name="${DRUPAL_ADMIN_USER:-admin}" \
         --account-pass="${DRUPAL_ADMIN_PASS:-admin}" \

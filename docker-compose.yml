@@ -6,8 +6,8 @@ services:
     restart: unless-stopped
     environment:
       # Database connection
-      DB_HOST: postgres
-      DB_PORT: 5432
+      DB_HOST: mariadb
+      DB_PORT: 3306
       DB_NAME: ${DB_NAME:-opensocial}
       DB_USER: ${DB_USER:-opensocial}
       DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
@@ -29,7 +29,7 @@ services:
       - opensocial_files:/var/www/html/html/sites/default/files
       - opensocial_private:/var/www/private
     depends_on:
-      postgres:
+      mariadb:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/core/install.php"]
@@ -40,23 +40,24 @@ services:
     labels:
       - "coolify.managed=true"
 
-  postgres:
-    image: postgres:16-alpine
+  mariadb:
+    image: mariadb:10.6
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-opensocial}
-      POSTGRES_USER: ${DB_USER:-opensocial}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      MYSQL_DATABASE: ${DB_NAME:-opensocial}
+      MYSQL_USER: ${DB_USER:-opensocial}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-opensocial} -d ${DB_NAME:-opensocial}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USER:-opensocial}", "-p${DB_PASSWORD:-changeme_in_production}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
 
 volumes:
   opensocial_files:
   opensocial_private:
-  postgres_data:
+  mariadb_data:
