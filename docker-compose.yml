@@ -15,6 +15,10 @@ services:
       DRUPAL_HASH_SALT: ${DRUPAL_HASH_SALT:-generate-a-random-string-here}
       DRUPAL_TRUSTED_HOST_PATTERNS: ${DRUPAL_TRUSTED_HOST_PATTERNS:-}
       DRUPAL_REVERSE_PROXY: "true"
+      # Solr settings
+      SOLR_HOST: solr
+      SOLR_PORT: 8983
+      SOLR_PATH: /solr
       # Auto-install settings
       DRUPAL_SITE_NAME: ${DRUPAL_SITE_NAME:-Open Social}
       DRUPAL_ADMIN_USER: ${DRUPAL_ADMIN_USER:-admin}
@@ -30,6 +34,8 @@ services:
       - opensocial_private:/var/www/private
     depends_on:
       mariadb:
+        condition: service_healthy
+      solr:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/core/install.php"]
@@ -57,7 +63,28 @@ services:
       retries: 5
       start_period: 30s
 
+  solr:
+    image: solr:8.11
+    restart: unless-stopped
+    ports:
+      - "8983:8983"
+    volumes:
+      - solr_data:/var/solr
+      - ./solr-config:/opt/solr/server/solr/configsets/opensearch
+    command: >
+      bash -c "
+        precreate-core opensearch /configsets/opensearch &&
+        exec solr -f
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8983/solr/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
 volumes:
   opensocial_files:
   opensocial_private:
   mariadb_data:
+  solr_data:

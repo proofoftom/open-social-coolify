@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one or more
+ contributor license agreements.  See the NOTICE file distributed with
+ this work for additional information regarding copyright ownership.
+ The ASF licenses this file to You under the Apache License, Version 2.0
+ (the "License"); you may not use this file except in compliance with
+ the License.  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<!-- Schema for Open Social with Search API Solr -->
+<schema name="open-social" version="1.6">
+  <fieldType name="string" class="solr.StrField" sortMissingLast="true" />
+  <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
+  <fieldType name="int" class="solr.TrieIntField" precisionStep="0" positionIncrementGap="0"/>
+  <fieldType name="float" class="solr.TrieFloatField" precisionStep="0" positionIncrementGap="0"/>
+  <fieldType name="long" class="solr.TrieLongField" precisionStep="0" positionIncrementGap="0"/>
+  <fieldType name="double" class="solr.TrieDoubleField" precisionStep="0" positionIncrementGap="0"/>
+  <fieldType name="pint" class="solr.TrieIntField" precisionStep="8" positionIncrementGap="0"/>
+  <fieldType name="pfloat" class="solr.TrieFloatField" precisionStep="8" positionIncrementGap="0"/>
+  <fieldType name="plong" class="solr.TrieLongField" precisionStep="8" positionIncrementGap="0"/>
+  <fieldType name="pdouble" class="solr.TrieDoubleField" precisionStep="8" positionIncrementGap="0"/>
+  <fieldType name="date" class="solr.TrieDateField" precisionStep="0" positionIncrementGap="0"/>
+  <fieldType name="pdate" class="solr.TrieDateField" precisionStep="6" positionIncrementGap="0"/>
+  <fieldType name="random" class="solr.RandomSortField" />
+  <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
+    <analyzer type="index">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt" />
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.StopFilterFactory" ignoreCase="true" words="stopwords.txt" enablePositionIncrements="true" />
+      <filter class="solr.SynonymFilterFactory" synonyms="synonyms.txt" ignoreCase="true" expand="true"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+  </fieldType>
+
+  <!-- Core fields -->
+  <field name="_version_" type="long" indexed="true" stored="true"/>
+  <field name="_root_" type="string" indexed="true" stored="false"/>
+
+  <!-- Search API-specific fields -->
+  <field name="id" type="string" indexed="true" stored="true" required="true" />
+  <field name="site" type="string" indexed="true" stored="true" />
+  <field name="hash" type="string" indexed="true" stored="true" />
+  <field name="url" type="string" indexed="true" stored="true" />
+  <field name="title" type="text_general" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
+  <field name="content" type="text_general" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
+  <field name="search_api_language" type="string" indexed="true" stored="true" />
+  <field name="search_api_datasource" type="string" indexed="true" stored="true" />
+  <field name="search_api_content_type" type="string" indexed="true" stored="true" />
+  <field name="search_api_bundle" type="string" indexed="true" stored="true" />
+  <field name="search_api_host" type="string" indexed="true" stored="true" />
+  <field name="search_api_url" type="string" indexed="true" stored="true" />
+  <field name="search_api_exclude" type="boolean" indexed="true" stored="true" />
+  <field name="ts" type="pint" indexed="true" stored="true" />
+  <field name="boost" type="float" indexed="true" stored="true" />
+
+  <!-- Dynamic fields for content entities -->
+  <dynamicField name="*_sr" type="string" indexed="true" stored="true" />
+  <dynamicField name="*_ss" type="string" indexed="true" stored="true" />
+  <dynamicField name="*_si" type="int" indexed="true" stored="true" />
+  <dynamicField name="*_sl" type="long" indexed="true" stored="true" />
+  <dynamicField name="*_sf" type="float" indexed="true" stored="true" />
+  <dynamicField name="*_sd" type="double" indexed="true" stored="true" />
+  <dynamicField name="*_sds" type="pdate" indexed="true" stored="true" />
+  <dynamicField name="*_sm" type="string" indexed="true" stored="true" multiValued="true" />
+  <dynamicField name="*_sms" type="string" indexed="true" stored="true" multiValued="true" />
+  <dynamicField name="*_smi" type="int" indexed="true" stored="true" multiValued="true" />
+  <dynamicField name="*_sml" type="long" indexed="true" stored="true" multiValued="true" />
+  <dynamicField name="*_smf" type="float" indexed="true" stored="true" multiValued="true" />
+  <dynamicField name="*_smd" type="double" indexed="true" stored="true" multiValued="true" />
+  <dynamicField name="*_smss" type="string" indexed="true" stored="true" multiValued="true" />
+  <dynamicField name="*_smds" type="pdate" indexed="true" stored="true" multiValued="true" />
+  <dynamicField name="*_txt" type="text_general" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" />
+  <dynamicField name="*_txts" type="text_general" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" multiValued="true" />
+  <dynamicField name="search_api_fulltext_*" type="text_general" indexed="true" stored="true" termVectors="true" termPositions="true" termOffsets="true" multiValued="true" />
+  <dynamicField name="search_api_*" type="string" indexed="true" stored="true" multiValued="true" />
+  <dynamicField name="entity_id" type="string" indexed="true" stored="true" />
+
+  <!-- Required unique key -->
+  <uniqueKey>id</uniqueKey>
+
+  <!-- Default search field -->
+  <defaultSearchField>content</defaultSearchField>
+
+  <!-- Solr query parser -->
+  <solrQueryParser defaultOperator="OR" />
+</schema>

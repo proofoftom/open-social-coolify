@@ -1,0 +1,40 @@
+<!-- Additional configuration for Search API Solr -->
+<config>
+  <!-- Request dispatchers -->
+  <requestDispatcher handleSelect="true" />
+
+  <!-- Search components -->
+  <searchComponent name="spellcheck" class="solr.SpellCheckComponent">
+    <str name="queryAnalyzerFieldType">text_general</str>
+    <lst name="spellchecker">
+      <str name="name">default</str>
+      <str name="field">content</str>
+      <str name="classname">solr.DirectSolrSpellChecker</str>
+      <str name="distanceMeasure">internal</str>
+      <float name="accuracy">0.5</float>
+      <int name="maxEdits">2</int>
+      <int name="minPrefix">1</int>
+      <int name="maxInspections">5</int>
+      <int name="minQueryLength">4</int>
+      <float name="maxQueryFrequency">0.01</float>
+      <float name="thresholdTokenFrequency">0.01</float>
+    </lst>
+  </searchComponent>
+
+  <!-- Highlighting component -->
+  <searchComponent class="solr.HighlightComponent" name="highlight">
+    <highlighting>
+      <fragmenter name="gap" class="solr.highlight.GapFragmenter">
+        <lst name="defaults">
+          <int name="hl.fragsize">100</int>
+        </lst>
+      </fragmenter>
+      <formatter name="html" class="solr.highlight.HtmlFormatter">
+        <lst name="defaults">
+          <str name="hl.simple.pre"><![CDATA[<em>]]></str>
+          <str name="hl.simple.post"><![CDATA[</em>]]></str>
+        </lst>
+      </formatter>
+    </highlighting>
+  </searchComponent>
+</config>

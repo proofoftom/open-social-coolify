@@ -1,10 +1,15 @@
 # Open Social 13.0.0-beta2 for Coolify
 
-Docker Compose setup for deploying Open Social 13.0.0-beta2 with PostgreSQL on Coolify.
+Docker Compose setup for deploying Open Social 13.0.0-beta2 with MariaDB on Coolify, including integrated Solr search.
 
 ## How It Works
 
 The Dockerfile creates a custom `composer.json` that requires `goalgorilla/open_social:13.0.0-beta2` directly from Packagist (the `social_template` doesn't have versioned releases for 13.x). This gives you a proper Composer-managed installation with Drush included.
+
+The setup also includes:
+- Apache Solr service for advanced search capabilities
+- Search API and Search API Solr modules pre-installed and configured
+- Automatic configuration via environment variables
 
 ## Quick Start for Coolify
 
@@ -39,6 +44,8 @@ The Dockerfile creates a custom `composer.json` that requires `goalgorilla/open_
 
 **Auto-install is now enabled!** On first deploy, Drush will automatically install Open Social using the environment variables you've configured. Just wait for the container to start and the site will be ready.
 
+The Search API and Search API Solr modules will be automatically enabled during installation.
+
 You can customize the install via environment variables:
 - `DRUPAL_SITE_NAME` - Your community name (default: "Open Social")
 - `DRUPAL_ADMIN_USER` - Admin username (default: "admin")
@@ -66,14 +73,17 @@ cd /var/www/html
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DB_HOST` | PostgreSQL host | `postgres` |
-| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_HOST` | MariaDB host | `mariadb` |
+| `DB_PORT` | MariaDB port | `3306` |
 | `DB_NAME` | Database name | `opensocial` |
 | `DB_USER` | Database user | `opensocial` |
 | `DB_PASSWORD` | Database password | (required) |
 | `DRUPAL_HASH_SALT` | Drupal hash salt | (auto-generated, set for production) |
 | `DRUPAL_TRUSTED_HOST_PATTERNS` | Comma-separated regex patterns | (auto-detected from Coolify) |
 | `DRUPAL_REVERSE_PROXY` | Enable reverse proxy settings | `true` |
+| `SOLR_HOST` | Solr host | `solr` |
+| `SOLR_PORT` | Solr port | `8983` |
+| `SOLR_PATH` | Solr path | `/solr` |
 | `DRUPAL_SITE_NAME` | Site name for auto-install | `Open Social` |
 | `DRUPAL_ADMIN_USER` | Admin username for auto-install | `admin` |
 | `DRUPAL_ADMIN_PASS` | Admin password for auto-install | `admin` |
@@ -85,7 +95,8 @@ cd /var/www/html
 |--------|---------|
 | `opensocial_files` | Public uploaded files |
 | `opensocial_private` | Private files (downloads, etc.) |
-| `postgres_data` | PostgreSQL data persistence |
+| `mariadb_data` | MariaDB data persistence |
+| `solr_data` | Solr data persistence |
 
 ## Coolify-Specific Notes
 
@@ -96,14 +107,28 @@ Coolify will handle SSL/TLS via Traefik. Make sure to:
 
 ### Health Checks
 The compose file includes health checks. Coolify will show the service as healthy once:
-- PostgreSQL accepts connections
+- MariaDB accepts connections
+- Solr is available
 - Apache serves the Drupal install page
 
 ### Scaling
 For production, consider:
 - Adding Redis for caching (Open Social supports it)
-- Separating the database to a managed PostgreSQL service
+- Separating the database to a managed MariaDB service
 - Adding backup jobs for volumes
+- Scaling Solr appropriately for search load
+
+## Solr Search Configuration
+
+Apache Solr is included as a separate service and automatically integrated with Open Social using the Search API Solr module.
+
+### After Installation
+1. Navigate to `/admin/config/search/search-api`
+2. You should see a server named "solr_server" that was automatically created
+3. The server should be marked as "Available"
+4. You can create or edit search indexes to use this Solr server
+
+For more detailed information about Solr configuration, see the [SOLR_SETUP.md](./SOLR_SETUP.md) file.
 
 ## Troubleshooting
 
@@ -118,7 +143,14 @@ docker logs <container_name>
 ```bash
 # Test connection from app container
 docker exec -it <app_container> bash
-nc -zv postgres 5432
+nc -zv mariadb 3306
+```
+
+### Solr connection issues
+```bash
+# Test connection from app container
+docker exec -it <app_container> bash
+nc -zv solr 8983
 ```
 
 ### Permission issues
