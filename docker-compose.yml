@@ -70,10 +70,10 @@ services:
       - "8983:8983"
     volumes:
       - solr_data:/var/solr
-      - ./solr-config:/opt/solr/server/solr/configsets/opensearch
+      - ./solr-config:/opt/solr/server/solr/configsets/opensearch/conf
     command: >
       bash -c "
-        precreate-core opensearch /configsets/opensearch &&
+        precreate-core opensearch /opt/solr/server/solr/configsets/opensearch &&
         exec solr -f
       "
     healthcheck:
