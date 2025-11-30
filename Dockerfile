@@ -1,76 +1,141 @@
 FROM php:8.3-apache
 
-# Install system dependencies
+# Install system dependencies (including libraries for GD with WebP support)
 RUN apt-get update && apt-get install -y \
     git \
-    unzip \
-    wget \
     curl \
-    netcat-openbsd \
-    libpq-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
+    libwebp-dev \
+    libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
-    libwebp-dev \
-    libfreetype6-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install pdo pdo_pgsql gd zip opcache mbstring bcmath \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    libpq-dev \
+    libicu-dev \
+    g++ \
+    zip \
+    unzip \
+    netcat-traditional \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure GD with WebP, JPEG, and Freetype support (required by Open Social 11.5+)
+RUN docker-php-ext-configure gd \
+    --with-jpeg \
+    --with-webp \
+    --with-freetype
+
+# Configure and install intl extension
+RUN docker-php-ext-configure intl
+
+# Install all PHP extensions required by Drupal and Open Social
+RUN docker-php-ext-install -j$(nproc) \
+    pdo \
+    pdo_pgsql \
+    pgsql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip \
+    opcache \
+    intl
+
+# Enable Apache modules
+RUN a2enmod rewrite headers expires
+
+# Set Apache document root
+ENV APACHE_DOCUMENT_ROOT /var/www/html/html/web
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+# Configure PHP
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+# Create PHP configuration for Drupal
+RUN { \
+    echo 'memory_limit = 512M'; \
+    echo 'upload_max_filesize = 64M'; \
+    echo 'post_max_size = 64M'; \
+    echo 'max_execution_time = 300'; \
+    echo 'max_input_vars = 5000'; \
+    echo 'realpath_cache_size = 4096k'; \
+    echo 'realpath_cache_ttl = 600'; \
+} > /usr/local/etc/php/conf.d/drupal.ini
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Create project directory
 WORKDIR /var/www/html
 
-# Copy composer.json for Open Social 13.0.0-beta2
-COPY composer.json .
+# Create composer.json for Open Social with patching enabled
+RUN cat > composer.json << 'COMPOSER_JSON'
+{
+    "name": "goalgorilla/open-social-project",
+    "type": "project",
+    "require": {
+        "goalgorilla/open_social": "13.0.0-beta2",
+        "drush/drush": "^13",
+        "cweagans/composer-patches": "^1.7"
+    },
+    "extra": {
+        "drupal-scaffold": {
+            "locations": {
+                "web-root": "html/web"
+            }
+        },
+        "installer-paths": {
+            "html/web/core": ["type:drupal-core"],
+            "html/web/libraries/{$name}": ["type:drupal-library"],
+            "html/web/modules/contrib/{$name}": ["type:drupal-module"],
+            "html/web/profiles/contrib/{$name}": ["type:drupal-profile"],
+            "html/web/themes/contrib/{$name}": ["type:drupal-theme"],
+            "drush/Commands/contrib/{$name}": ["type:drupal-drush"]
+        },
+        "enable-patching": true,
+        "composer-exit-on-patch-failure": true,
+        "patchLevel": {
+            "drupal/core": "-p2"
+        }
+    },
+    "minimum-stability": "beta",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "composer/installers": true,
+            "drupal/core-composer-scaffold": true,
+            "cweagans/composer-patches": true,
+            "oomphinc/composer-installers-extender": true,
+            "phpstan/extension-installer": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "sort-packages": true
+    }
+}
+COMPOSER_JSON
 
-# Install dependencies
-RUN composer install --no-interaction --no-dev --prefer-dist --optimize-autoloader
+# Install Open Social via Composer (verbose to show patch application)
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader -v
 
-# Setup Apache
-RUN a2enmod rewrite headers expires
+# Create files directories
+RUN mkdir -p html/web/sites/default/files \
+    && mkdir -p /var/www/private \
+    && chown -R www-data:www-data html/web/sites/default/files \
+    && chown -R www-data:www-data /var/www/private \
+    && chmod -R 755 html/web/sites/default/files
 
-# Apache configuration - DocumentRoot points to /var/www/html/html (Drupal webroot)
-RUN sed -i 's!DocumentRoot /var/www/html!DocumentRoot /var/www/html/html!' /etc/apache2/sites-available/000-default.conf && \
-    echo '<Directory /var/www/html/html>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    Options -Indexes +FollowSymLinks' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    AllowOverride All' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    Require all granted' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '</Directory>' >> /etc/apache2/sites-available/000-default.conf
+# Copy settings.php template
+RUN cp html/web/sites/default/default.settings.php html/web/sites/default/settings.php \
+    && chown www-data:www-data html/web/sites/default/settings.php \
+    && chmod 644 html/web/sites/default/settings.php
 
-# Setup private files directory
-RUN mkdir -p /var/www/private && \
-    chmod 775 /var/www/private && \
-    chown -R www-data:www-data /var/www/private
-
-# Prepare settings.php from default
-RUN cp /var/www/html/html/sites/default/default.settings.php /var/www/html/html/sites/default/settings.php && \
-    chmod 666 /var/www/html/html/sites/default/settings.php && \
-    mkdir -p /var/www/html/html/sites/default/files && \
-    chmod 775 /var/www/html/html/sites/default/files
-
-# Set ownership
-RUN chown -R www-data:www-data /var/www/html
-
-# PHP configuration for Drupal
-RUN echo "memory_limit = 512M" >> /usr/local/etc/php/conf.d/drupal.ini && \
-    echo "upload_max_filesize = 64M" >> /usr/local/etc/php/conf.d/drupal.ini && \
-    echo "post_max_size = 64M" >> /usr/local/etc/php/conf.d/drupal.ini && \
-    echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/drupal.ini && \
-    echo "opcache.enable = 1" >> /usr/local/etc/php/conf.d/drupal.ini && \
-    echo "opcache.memory_consumption = 256" >> /usr/local/etc/php/conf.d/drupal.ini
-
-WORKDIR /var/www/html
-
-# Entrypoint script for runtime configuration
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Copy entrypoint script
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 80
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["apache2-foreground"]
