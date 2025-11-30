@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     netcat-traditional \
     postgresql-client \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure GD with WebP, JPEG, and Freetype support (required by Open Social 11.5+)
@@ -76,17 +77,14 @@ COPY composer.json .
 # Install Open Social via Composer (verbose to show patch application)
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader -v
 
-# Create files directories
+# Create files directories and ensure sites/default is writable
 RUN mkdir -p html/web/sites/default/files \
     && mkdir -p /var/www/private \
     && chown -R www-data:www-data html/web/sites/default/files \
     && chown -R www-data:www-data /var/www/private \
-    && chmod -R 755 html/web/sites/default/files
-
-# Copy settings.php template
-RUN cp html/web/sites/default/default.settings.php html/web/sites/default/settings.php \
-    && chown www-data:www-data html/web/sites/default/settings.php \
-    && chmod 644 html/web/sites/default/settings.php
+    && chown -R www-data:www-data html/web/sites/default \
+    && chmod -R 755 html/web/sites/default/files \
+    && chmod 755 html/web/sites/default
 
 # Copy entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
