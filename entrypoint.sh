@@ -94,7 +94,7 @@ $(echo -e "$TRUSTED_HOSTS")];
 if (${DRUPAL_REVERSE_PROXY:-true}) {
   \$settings['reverse_proxy'] = TRUE;
   \$settings['reverse_proxy_addresses'] = ['127.0.0.1', '172.16.0.0/12', '192.168.0.0/16', '10.0.0.0/8'];
-  \$settings['reverse_proxy_trusted_headers'] = 
+  \$settings['reverse_proxy_trusted_headers'] =
     \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_FOR |
     \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_PROTO |
     \Symfony\Component\HttpFoundation\Request::HEADER_X_FORWARDED_PORT;
@@ -112,7 +112,7 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
     echo "=============================================="
     echo "Open Social not installed. Running Drush site:install..."
     echo "=============================================="
-    
+
     # Run site install
     $DRUSH site:install social \
         --db-url="pgsql://${DB_USER:-opensocial}:${DB_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT:-5432}/${DB_NAME:-opensocial}" \
@@ -122,12 +122,25 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
         --account-mail="${DRUPAL_ADMIN_EMAIL:-admin@example.com}" \
         --locale=en \
         -y
-    
+
     echo "=============================================="
     echo "Open Social installation complete!"
     echo "=============================================="
+
+    # Enable the GraphQL module after installation
+    echo "Enabling GraphQL module..."
+    $DRUSH en graphql -y || echo "Failed to enable GraphQL module"
 else
     echo "Open Social already installed, skipping installation."
+
+    # Enable the GraphQL module if not already enabled
+    echo "Checking if GraphQL module is enabled..."
+    if ! $DRUSH pm-list --field=status --filter='graphql' | grep -q "Enabled"; then
+        echo "Enabling GraphQL module..."
+        $DRUSH en graphql -y || echo "Failed to enable GraphQL module"
+    else
+        echo "GraphQL module is already enabled."
+    fi
 fi
 
 # Ensure proper permissions after install
