@@ -23,20 +23,20 @@
     "extra": {
         "drupal-scaffold": {
             "locations": {
-                "web-root": "html/web"
+                "web-root": "html"
             }
         },
         "installer-paths": {
-            "html/web/core": ["type:drupal-core"],
-            "html/web/libraries/{$name}": ["type:drupal-library", "type:npm-asset", "type:bower-asset"],
-            "html/web/modules/contrib/{$name}": ["type:drupal-module"],
-            "html/web/profiles/contrib/{$name}": ["type:drupal-profile"],
-            "html/web/themes/contrib/{$name}": ["type:drupal-theme"],
+            "html/core": ["type:drupal-core"],
+            "html/libraries/{$name}": ["type:drupal-library", "type:npm-asset", "type:bower-asset"],
+            "html/modules/contrib/{$name}": ["type:drupal-module"],
+            "html/profiles/contrib/{$name}": ["type:drupal-profile"],
+            "html/themes/contrib/{$name}": ["type:drupal-theme"],
             "drush/Commands/contrib/{$name}": ["type:drupal-drush"]
         },
         "installer-types": ["npm-asset", "bower-asset"],
         "enable-patching": true,
-        "composer-exit-on-patch-failure": false,
+        "composer-exit-on-patch-failure": true,
         "patchLevel": {
             "drupal/core": "-p2"
         }
