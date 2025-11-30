@@ -84,7 +84,6 @@ if ! grep -q "Added by entrypoint" "$SETTINGS_FILE" 2>/dev/null; then
   'port' => '${DB_PORT:-3306}',
   'driver' => 'mysql',
   'namespace' => 'Drupal\\Core\\Database\\Driver\\mysql',
-  'autoload' => 'core/lib/Drupal/Core/Database/Driver/mysql/',
 ];
 
 \$settings['hash_salt'] = '${DRUPAL_HASH_SALT}';
