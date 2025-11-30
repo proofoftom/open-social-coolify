@@ -2,7 +2,7 @@
 set -e
 
 # Define paths
-DRUPAL_ROOT="/var/www/html/html/web"
+DRUPAL_ROOT="/var/www/html/html"
 PROJECT_ROOT="/var/www/html"
 DRUSH="$PROJECT_ROOT/vendor/bin/drush"
 SETTINGS_FILE="$DRUPAL_ROOT/sites/default/settings.php"
