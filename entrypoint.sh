@@ -19,7 +19,7 @@ echo "Database host is available!"
 
 # Create the database if it doesn't exist
 echo "Creating database if it doesn't exist..."
-mysql -h "${DB_HOST:-mariadb}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_ROOT_PASSWORD:-rootpassword}" --ssl-mode=DISABLED -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME:-opensocial}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
+mysql -h "${DB_HOST:-mariadb}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_ROOT_PASSWORD:-rootpassword}" --skip-ssl -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME:-opensocial}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
 echo "Database is ready!"
 
 # Create files directories if they don't exist
