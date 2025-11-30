@@ -1,6 +1,8 @@
 {
     "name": "goalgorilla/open-social-project",
+    "description": "Open Social project for Coolify deployment",
     "type": "project",
+    "license": "GPL-2.0-or-later",
     "repositories": [
         {
             "type": "composer",
@@ -14,8 +16,9 @@
     "require": {
         "goalgorilla/open_social": "13.0.0-beta2",
         "drush/drush": "^13",
+        "composer/installers": "~1.0 || ~2.0",
         "cweagans/composer-patches": "^1.7",
-        "oomphinc/composer-installers-extender": "^2.0"
+        "oomphinc/composer-installers-extender": "~1.0 || ~2.0"
     },
     "extra": {
         "drupal-scaffold": {
@@ -38,9 +41,9 @@
             "drupal/core": "-p2"
         }
     },
-    "minimum-stability": "beta",
-    "prefer-stable": true,
     "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
         "allow-plugins": {
             "composer/installers": true,
             "drupal/core-composer-scaffold": true,
@@ -48,7 +51,8 @@
             "oomphinc/composer-installers-extender": true,
             "phpstan/extension-installer": true,
             "dealerdirect/phpcodesniffer-composer-installer": true
-        },
-        "sort-packages": true
-    }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
