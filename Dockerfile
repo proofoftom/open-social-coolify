@@ -70,51 +70,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Create composer.json for Open Social with patching enabled
-RUN cat > composer.json << 'COMPOSER_JSON'
-{
-    "name": "goalgorilla/open-social-project",
-    "type": "project",
-    "require": {
-        "goalgorilla/open_social": "13.0.0-beta2",
-        "drush/drush": "^13",
-        "cweagans/composer-patches": "^1.7"
-    },
-    "extra": {
-        "drupal-scaffold": {
-            "locations": {
-                "web-root": "html/web"
-            }
-        },
-        "installer-paths": {
-            "html/web/core": ["type:drupal-core"],
-            "html/web/libraries/{$name}": ["type:drupal-library"],
-            "html/web/modules/contrib/{$name}": ["type:drupal-module"],
-            "html/web/profiles/contrib/{$name}": ["type:drupal-profile"],
-            "html/web/themes/contrib/{$name}": ["type:drupal-theme"],
-            "drush/Commands/contrib/{$name}": ["type:drupal-drush"]
-        },
-        "enable-patching": true,
-        "composer-exit-on-patch-failure": true,
-        "patchLevel": {
-            "drupal/core": "-p2"
-        }
-    },
-    "minimum-stability": "beta",
-    "prefer-stable": true,
-    "config": {
-        "allow-plugins": {
-            "composer/installers": true,
-            "drupal/core-composer-scaffold": true,
-            "cweagans/composer-patches": true,
-            "oomphinc/composer-installers-extender": true,
-            "phpstan/extension-installer": true,
-            "dealerdirect/phpcodesniffer-composer-installer": true
-        },
-        "sort-packages": true
-    }
-}
-COMPOSER_JSON
+# Copy composer.json for Open Social with patching enabled
+COPY composer.json .
 
 # Install Open Social via Composer (verbose to show patch application)
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader -v
