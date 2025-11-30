@@ -48,7 +48,7 @@ RUN docker-php-ext-install -j$(nproc) \
 RUN a2enmod rewrite headers expires
 
 # Set Apache document root
-ENV APACHE_DOCUMENT_ROOT /var/www/html/html/web
+ENV APACHE_DOCUMENT_ROOT /var/www/html/html
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
@@ -78,13 +78,13 @@ COPY composer.json .
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader -v
 
 # Create files directories and ensure sites/default is writable
-RUN mkdir -p html/web/sites/default/files \
+RUN mkdir -p html/sites/default/files \
     && mkdir -p /var/www/private \
-    && chown -R www-data:www-data html/web/sites/default/files \
+    && chown -R www-data:www-data html/sites/default/files \
     && chown -R www-data:www-data /var/www/private \
-    && chown -R www-data:www-data html/web/sites/default \
-    && chmod -R 755 html/web/sites/default/files \
-    && chmod 755 html/web/sites/default
+    && chown -R www-data:www-data html/sites/default \
+    && chmod -R 755 html/sites/default/files \
+    && chmod 755 html/sites/default
 
 # Copy entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
