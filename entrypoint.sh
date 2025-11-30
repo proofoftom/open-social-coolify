@@ -3,6 +3,8 @@ set -e
 
 # Define paths
 DRUPAL_ROOT="/var/www/html/html/web"
+PROJECT_ROOT="/var/www/html"
+DRUSH="$PROJECT_ROOT/vendor/bin/drush"
 SETTINGS_FILE="$DRUPAL_ROOT/sites/default/settings.php"
 DEFAULT_SETTINGS="$DRUPAL_ROOT/sites/default/default.settings.php"
 FILES_DIR="$DRUPAL_ROOT/sites/default/files"
@@ -104,7 +106,7 @@ fi
 # Check if Drupal is already installed
 cd "$DRUPAL_ROOT"
 
-SITE_INSTALLED=$(../vendor/bin/drush status --field=bootstrap 2>/dev/null || echo "")
+SITE_INSTALLED=$($DRUSH status --field=bootstrap 2>/dev/null || echo "")
 
 if [ "$SITE_INSTALLED" != "Successful" ]; then
     echo "=============================================="
@@ -112,7 +114,7 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
     echo "=============================================="
     
     # Run site install
-    ../vendor/bin/drush site:install social \
+    $DRUSH site:install social \
         --db-url="pgsql://${DB_USER:-opensocial}:${DB_PASSWORD}@${DB_HOST:-postgres}:${DB_PORT:-5432}/${DB_NAME:-opensocial}" \
         --site-name="${DRUPAL_SITE_NAME:-Open Social}" \
         --account-name="${DRUPAL_ADMIN_USER:-admin}" \
@@ -135,11 +137,11 @@ chown -R www-data:www-data "$PRIVATE_DIR"
 # Run any pending database updates
 echo "Running database updates..."
 cd "$DRUPAL_ROOT"
-../vendor/bin/drush updatedb -y || true
+$DRUSH updatedb -y || true
 
 # Clear cache
 echo "Clearing cache..."
-../vendor/bin/drush cache:rebuild || true
+$DRUSH cache:rebuild || true
 
 echo "=============================================="
 echo "Starting Apache..."
