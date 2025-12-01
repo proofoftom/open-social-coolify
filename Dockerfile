@@ -73,11 +73,11 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy composer.json for Open Social with patching enabled
-COPY composer.json .
+# Copy composer.json and composer.lock for Open Social with patching enabled
+COPY composer.json composer.lock .
 
-# Install Open Social via Composer (use update to resolve dependencies without lock file)
-RUN COMPOSER_ALLOW_SUPERUSER=1 composer update --no-dev --optimize-autoloader -v
+# Install Open Social via Composer (uses composer.lock with resolved dependencies)
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader -v
 
 # Create files directories and ensure sites/default is writable
 RUN mkdir -p html/sites/default/files \

@@ -14,12 +14,12 @@
         }
     ],
     "require": {
-        "goalgorilla/open_social": "13.0.0-beta2",
-        "drush/drush": "^13",
         "composer/installers": "~1.0 || ~2.0",
         "cweagans/composer-patches": "^1.7",
-        "oomphinc/composer-installers-extender": "~1.0 || ~2.0",
-        "drupal/siwe_login": "^1.0"
+        "drupal/siwe_login": "^1.0@beta",
+        "drush/drush": "^13.7",
+        "goalgorilla/open_social": "13.0.0-beta2",
+        "oomphinc/composer-installers-extender": "~1.0 || ~2.0"
     },
     "extra": {
         "drupal-scaffold": {
