@@ -160,6 +160,9 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
 
     echo "Enabling Search API Solr module..."
     $DRUSH en search_api_solr -y || echo "Failed to enable Search API Solr module"
+
+    echo "Enabling SIWE Login module..."
+    $DRUSH en siwe_login -y || echo "Failed to enable SIWE Login module"
 else
     echo "Open Social already installed, skipping installation."
 
@@ -186,6 +189,15 @@ else
         $DRUSH en search_api_solr -y || echo "Failed to enable Search API Solr module"
     else
         echo "Search API Solr module is already enabled."
+    fi
+
+    # Enable the SIWE Login module if not already enabled
+    echo "Checking if SIWE Login module is enabled..."
+    if ! $DRUSH pm-list --field=status --filter='siwe_login' | grep -q "Enabled"; then
+        echo "Enabling SIWE Login module..."
+        $DRUSH en siwe_login -y || echo "Failed to enable SIWE Login module"
+    else
+        echo "SIWE Login module is already enabled."
     fi
 fi
 
