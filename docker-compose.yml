@@ -78,6 +78,8 @@ services:
       bash -c "
         # Wait for file system to be ready
         sleep 2 &&
+        # Remove any existing core data that might be corrupted
+        rm -rf /var/solr/data/drupal &&
         # Precreate the drupal core using our configset
         solr-precreate drupal opensearch &&
         exec solr -f
