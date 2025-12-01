@@ -64,25 +64,22 @@ services:
       start_period: 30s
 
   solr:
-    image: solr:8.11
+    build:
+      context: .
+      dockerfile: Dockerfile.solr
     restart: unless-stopped
     ports:
       - "8983:8983"
     volumes:
       - solr_data:/var/solr
-      - ./solr-config:/opt/solr/server/solr/configsets/opensearch/conf
     environment:
       - SOLR_HEAP=512m
     command: >
       bash -c "
-        # Wait a moment for file system to be ready
+        # Wait for file system to be ready
         sleep 2 &&
-        # Copy configset to a working directory where we have permissions
-        cp -r /opt/solr/server/solr/configsets/_default/conf/* /opt/solr/server/solr/configsets/opensearch/conf/ &&
-        # Then ensure our core.properties is in place
-        echo 'name=drupal' > /opt/solr/server/solr/configsets/opensearch/conf/core.properties &&
-        # Create the core
-        solr-precreate drupal /opt/solr/server/solr/configsets/opensearch &&
+        # Precreate the drupal core using our configset
+        solr-precreate drupal opensearch &&
         exec solr -f
       "
     healthcheck:
