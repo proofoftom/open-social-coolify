@@ -120,7 +120,7 @@ if (getenv('SOLR_HOST') && getenv('SOLR_PORT')) {
   \$config['search_api.server.solr_server']['configuration']['host'] = '${SOLR_HOST:-solr}';
   \$config['search_api.server.solr_server']['configuration']['port'] = '${SOLR_PORT:-8983}';
   \$config['search_api.server.solr_server']['configuration']['path'] = '${SOLR_PATH:-/solr}';
-  \$config['search_api.server.solr_server']['configuration']['core'] = 'opensearch';
+  \$config['search_api.server.solr_server']['configuration']['core'] = 'drupal';
   \$config['search_api.server.solr_server']['configuration']['http_method'] = 'POST';
 }
 SETTINGS
