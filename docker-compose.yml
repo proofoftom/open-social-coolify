@@ -68,8 +68,6 @@ services:
       context: .
       dockerfile: Dockerfile.solr
     restart: unless-stopped
-    ports:
-      - "8983:8983"
     volumes:
       - solr_data:/var/solr
     environment:
