@@ -1,0 +1,16 @@
+FROM solr:8.11
+
+# Switch to root to make changes to the file system
+USER root
+
+# Create the configset directory
+RUN mkdir -p /opt/solr/server/solr/configsets/opensearch/conf
+
+# Copy our configuration files
+COPY ./solr-config/ /opt/solr/server/solr/configsets/opensearch/conf/
+
+# Ensure the solr user owns the config directory
+RUN chown -R solr:solr /opt/solr/server/solr/configsets/opensearch
+
+# Switch back to the solr user
+USER solr

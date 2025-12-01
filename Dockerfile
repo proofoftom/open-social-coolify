@@ -11,13 +11,13 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
-    libpq-dev \
+    default-libmysqlclient-dev \
     libicu-dev \
     g++ \
     zip \
     unzip \
     netcat-traditional \
-    postgresql-client \
+    mariadb-client \
     openssl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -33,8 +33,8 @@ RUN docker-php-ext-configure intl
 # Install all PHP extensions required by Drupal and Open Social
 RUN docker-php-ext-install -j$(nproc) \
     pdo \
-    pdo_pgsql \
-    pgsql \
+    pdo_mysql \
+    mysqli \
     mbstring \
     exif \
     pcntl \

@@ -1,0 +1,8 @@
+# Contains synonyms that will be expanded during search operations
+# Format: word => synonym1, synonym2, ...
+# Or just comma-separated synonyms: word1, word2, word3
+
+# Example synonyms that might be relevant to Open Social
+# Feel free to customize based on your specific needs
+fun,cool,awesome
+social network,social media,community

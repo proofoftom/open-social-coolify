@@ -6,8 +6,8 @@ services:
     restart: unless-stopped
     environment:
       # Database connection
-      DB_HOST: postgres
-      DB_PORT: 5432
+      DB_HOST: mariadb
+      DB_PORT: 3306
       DB_NAME: ${DB_NAME:-opensocial}
       DB_USER: ${DB_USER:-opensocial}
       DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
@@ -15,6 +15,10 @@ services:
       DRUPAL_HASH_SALT: ${DRUPAL_HASH_SALT:-generate-a-random-string-here}
       DRUPAL_TRUSTED_HOST_PATTERNS: ${DRUPAL_TRUSTED_HOST_PATTERNS:-}
       DRUPAL_REVERSE_PROXY: "true"
+      # Solr settings
+      SOLR_HOST: solr
+      SOLR_PORT: 8983
+      SOLR_PATH: /solr
       # Auto-install settings
       DRUPAL_SITE_NAME: ${DRUPAL_SITE_NAME:-Open Social}
       DRUPAL_ADMIN_USER: ${DRUPAL_ADMIN_USER:-admin}
@@ -29,7 +33,9 @@ services:
       - opensocial_files:/var/www/html/html/sites/default/files
       - opensocial_private:/var/www/private
     depends_on:
-      postgres:
+      mariadb:
+        condition: service_healthy
+      solr:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/core/install.php"]
@@ -40,23 +46,53 @@ services:
     labels:
       - "coolify.managed=true"
 
-  postgres:
-    image: postgres:16-alpine
+  mariadb:
+    image: mariadb:10.11
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-opensocial}
-      POSTGRES_USER: ${DB_USER:-opensocial}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      MYSQL_DATABASE: ${DB_NAME:-opensocial}
+      MYSQL_USER: ${DB_USER:-opensocial}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-opensocial} -d ${DB_NAME:-opensocial}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USER:-opensocial}", "-p${DB_PASSWORD:-changeme_in_production}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
+
+  solr:
+    build:
+      context: .
+      dockerfile: Dockerfile.solr
+    restart: unless-stopped
+    ports:
+      - "8983:8983"
+    volumes:
+      - solr_data:/var/solr
+    environment:
+      - SOLR_HEAP=512m
+    command: >
+      bash -c "
+        # Wait for file system to be ready
+        sleep 2 &&
+        # Remove any existing core data that might be corrupted
+        rm -rf /var/solr/data/drupal &&
+        # Precreate the drupal core using our configset with full path
+        solr-precreate drupal /opt/solr/server/solr/configsets/opensearch &&
+        exec solr -f
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8983/solr/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   opensocial_files:
   opensocial_private:
-  postgres_data:
+  mariadb_data:
+  solr_data:
