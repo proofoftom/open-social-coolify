@@ -1,6 +1,6 @@
 FROM php:8.3-apache
 
-# Install system dependencies (including libraries for GD with WebP support)
+# Install system dependencies (including libraries for GD with WebP support and GMP for SIWE)
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     default-libmysqlclient-dev \
     libicu-dev \
+    libgmp-dev \
     g++ \
     zip \
     unzip \
@@ -40,6 +41,7 @@ RUN docker-php-ext-install -j$(nproc) \
     pcntl \
     bcmath \
     gd \
+    gmp \
     zip \
     opcache \
     intl
