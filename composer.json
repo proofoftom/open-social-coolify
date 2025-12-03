@@ -1,8 +1,17 @@
 {
-    "name": "goalgorilla/open-social-project",
-    "description": "Open Social project for Coolify deployment",
+    "name": "goalgorilla/social_template",
+    "description": "Social project template for composer based Open Social projects.",
     "type": "project",
-    "license": "GPL-2.0-or-later",
+    "license": "GPL-2.0+",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "goalgorilla/open_social": "~13.0.0-beta2",
+        "php": "^8.0",
+        "monolog/monolog": "^2.3.5",
+        "drush/drush": "^13.6",
+        "drupal/siwe_login": "1.0.x-dev"
+    },
     "repositories": [
         {
             "type": "composer",
@@ -13,47 +22,53 @@
             "url": "https://asset-packagist.org"
         }
     ],
-    "require": {
-        "composer/installers": "~1.0 || ~2.0",
-        "cweagans/composer-patches": "^1.7",
-        "drupal/siwe_login": "^1.0@beta",
-        "drush/drush": "^13.7",
-        "goalgorilla/open_social": "13.0.0-beta2",
-        "oomphinc/composer-installers-extender": "~1.0 || ~2.0"
-    },
     "extra": {
         "drupal-scaffold": {
             "locations": {
-                "web-root": "html"
+                "web-root": "html/"
             }
         },
+        "installer-types": [
+            "bower-asset",
+            "npm-asset"
+        ],
         "installer-paths": {
-            "html/core": ["type:drupal-core"],
-            "html/libraries/{$name}": ["type:drupal-library", "type:npm-asset", "type:bower-asset"],
-            "html/modules/contrib/{$name}": ["type:drupal-module"],
-            "html/profiles/contrib/{$name}": ["type:drupal-profile"],
-            "html/themes/contrib/{$name}": ["type:drupal-theme"],
-            "drush/Commands/contrib/{$name}": ["type:drupal-drush"]
+            "html/core": [
+                "drupal/core"
+            ],
+            "html/modules/contrib/{$name}": [
+                "type:drupal-module"
+            ],
+            "html/profiles/contrib/social": [
+                "goalgorilla/open_social"
+            ],
+            "html/profiles/contrib/{$name}": [
+                "type:drupal-profile"
+            ],
+            "html/themes/contrib/{$name}": [
+                "type:drupal-theme"
+            ],
+            "html/libraries/{$name}": [
+                "type:drupal-library",
+                "type:bower-asset",
+                "type:npm-asset"
+            ],
+            "drush/contrib/{$name}": [
+                "type:drupal-drush"
+            ]
         },
-        "installer-types": ["npm-asset", "bower-asset"],
         "enable-patching": true,
-        "composer-exit-on-patch-failure": false,
         "patchLevel": {
             "drupal/core": "-p2"
         }
     },
     "config": {
-        "optimize-autoloader": true,
-        "sort-packages": true,
         "allow-plugins": {
             "composer/installers": true,
-            "drupal/core-composer-scaffold": true,
             "cweagans/composer-patches": true,
+            "drupal/core-composer-scaffold": true,
             "oomphinc/composer-installers-extender": true,
-            "phpstan/extension-installer": true,
-            "dealerdirect/phpcodesniffer-composer-installer": true
+            "zaporylie/composer-drupal-optimizations": true
         }
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    }
 }
