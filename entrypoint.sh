@@ -151,11 +151,6 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
     echo "Open Social installation complete!"
     echo "=============================================="
 
-    echo "Installing demo content..."
-    $DRUSH en social_demo -y || echo "Failed to enable social_demo module"
-    $DRUSH cr || echo "Failed to clear cache"
-    $DRUSH social-demo:add file user group topic event event_enrollment comment post like || echo "Failed to add demo content"
-
     # Enable the GraphQL and Search API Solr modules after installation
     echo "Enabling GraphQL module..."
     $DRUSH en graphql -y || echo "Failed to enable GraphQL module"
@@ -165,6 +160,11 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
 
     echo "Enabling Search API Solr module..."
     $DRUSH en search_api_solr -y || echo "Failed to enable Search API Solr module"
+
+    echo "Installing demo content..."
+    $DRUSH en social_demo -y || echo "Failed to enable social_demo module"
+    $DRUSH cr || echo "Failed to clear cache"
+    $DRUSH social-demo:add file user group topic event event_enrollment comment post like || echo "Failed to add demo content"
 
     echo "Enabling SIWE Login module..."
     $DRUSH en siwe_login -y || echo "Failed to enable SIWE Login module"
