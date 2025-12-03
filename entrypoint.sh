@@ -226,8 +226,17 @@ if $DRUSH pm-list --field=status --filter='siwe_login' | grep -q "Enabled"; then
     fi
 fi
 
+# Install or update composer dependencies
+echo "Installing/updating composer dependencies..."
+cd "$PROJECT_ROOT"
+composer install --no-interaction --optimize-autoloader --no-dev
+if [ $? -ne 0 ]; then
+    echo "Composer install failed, trying composer update..."
+    composer update --no-interaction --optimize-autoloader --no-dev
+fi
+
 # Ensure proper permissions after install
-chown -R www-data:www-data "$FILES_DIR"
+chown -R www-data:www-data "$DRUPAL_ROOT/sites/default/files"
 chown -R www-data:www-data "$PRIVATE_DIR"
 
 # Run any pending database updates
@@ -237,7 +246,7 @@ $DRUSH updatedb -y || true
 
 # Clear cache
 echo "Clearing cache..."
-$DRUSH cache:rebuild || true
+$DRUSH cr || true
 
 echo "=============================================="
 echo "Starting Apache..."
