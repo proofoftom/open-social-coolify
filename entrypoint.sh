@@ -201,6 +201,31 @@ else
     fi
 fi
 
+# Configure SIWE Login expected domain (for both fresh and existing installations)
+if $DRUSH pm-list --field=status --filter='siwe_login' | grep -q "Enabled"; then
+    echo "Configuring SIWE Login expected domain..."
+    SIWE_DOMAIN=""
+
+    # Try to get domain from SERVICE_FQDN_OPENSOCIAL (Coolify variable)
+    if [ -n "${SERVICE_FQDN_OPENSOCIAL:-}" ]; then
+        SIWE_DOMAIN="$SERVICE_FQDN_OPENSOCIAL"
+    # Fall back to extracting from COOLIFY_URL
+    elif [ -n "${COOLIFY_URL:-}" ]; then
+        SIWE_DOMAIN=$(echo "$COOLIFY_URL" | sed -e 's|^[^/]*//||' -e 's|/.*$||' -e 's|:.*$||')
+    # Fall back to first trusted host pattern if set
+    elif [ -n "$DRUPAL_TRUSTED_HOST_PATTERNS" ]; then
+        # Extract first pattern (remove regex anchors if present)
+        SIWE_DOMAIN=$(echo "$DRUPAL_TRUSTED_HOST_PATTERNS" | cut -d',' -f1 | sed 's/[\^$]//g' | sed 's/\\\\/\//g')
+    fi
+
+    if [ -n "$SIWE_DOMAIN" ]; then
+        echo "Setting SIWE Login expected domain to: $SIWE_DOMAIN"
+        $DRUSH config:set siwe_login.settings expected_domain "$SIWE_DOMAIN" -y || echo "Failed to configure SIWE Login domain"
+    else
+        echo "Warning: Could not determine domain for SIWE Login configuration"
+    fi
+fi
+
 # Ensure proper permissions after install
 chown -R www-data:www-data "$FILES_DIR"
 chown -R www-data:www-data "$PRIVATE_DIR"
