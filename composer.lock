@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e60ddfdf4c71ccd1bdd3043d994f4835",
+    "content-hash": "6642b316cb2c314a10732164d8535739",
     "packages": [
         {
             "name": "asm89/stack-cors",
@@ -6204,7 +6204,7 @@
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/project/siwe_login.git",
-                "reference": "4c602b2ec0fea3155ac066a2ffc19a3c1504d14a"
+                "reference": "77edff2c03c979a402cc11da150a2881d6991adb"
             },
             "require": {
                 "drupal/core": "^10 || ^11",
@@ -6219,7 +6219,7 @@
                 },
                 "drupal": {
                     "version": "1.0.x-dev",
-                    "datestamp": "1765307891",
+                    "datestamp": "1765320908",
                     "security-coverage": {
                         "status": "not-covered",
                         "message": "Project has not opted into security advisory coverage!"

@@ -10,7 +10,7 @@
         "php": "^8.0",
         "monolog/monolog": "^2.3.5",
         "drush/drush": "^13.6",
-        "drupal/siwe_login": "dev-1.0.x"
+        "drupal/siwe_login": "1.0.x-dev"
     },
     "repositories": [
         {
