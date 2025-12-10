@@ -206,6 +206,20 @@ else
     fi
 fi
 
+# Copy custom modules to Drupal modules directory
+CUSTOM_MODULES_SOURCE="$PROJECT_ROOT/modules/custom"
+CUSTOM_MODULES_DEST="$DRUPAL_ROOT/modules/custom"
+
+if [ -d "$CUSTOM_MODULES_SOURCE" ]; then
+    echo "Copying custom modules to Drupal modules directory..."
+    mkdir -p "$CUSTOM_MODULES_DEST"
+    cp -r "$CUSTOM_MODULES_SOURCE"/* "$CUSTOM_MODULES_DEST"/
+    chown -R www-data:www-data "$CUSTOM_MODULES_DEST"
+    echo "Custom modules copied successfully."
+else
+    echo "No custom modules found at $CUSTOM_MODULES_SOURCE"
+fi
+
 # Configure SIWE Login expected domain (for both fresh and existing installations)
 if $DRUSH pm-list --field=status --filter='siwe_login' | grep -q "Enabled"; then
     echo "Configuring SIWE Login expected domain..."
@@ -229,6 +243,15 @@ if $DRUSH pm-list --field=status --filter='siwe_login' | grep -q "Enabled"; then
     else
         echo "Warning: Could not determine domain for SIWE Login configuration"
     fi
+fi
+
+# Enable custom group_treasury module (with dependencies)
+echo "Checking if group_treasury module is enabled..."
+if ! $DRUSH pm-list --field=status --filter='group_treasury' | grep -q "Enabled"; then
+    echo "Enabling group_treasury module (will enable dependencies: safe_smart_accounts, siwe_login)..."
+    $DRUSH en group_treasury -y || echo "Failed to enable group_treasury module"
+else
+    echo "group_treasury module is already enabled."
 fi
 
 # Install or update composer dependencies
