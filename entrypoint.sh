@@ -168,6 +168,17 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
 
     echo "Enabling SIWE Login module..."
     $DRUSH en siwe_login -y || echo "Failed to enable SIWE Login module"
+
+    # Enable custom modules (safe_smart_accounts first due to dependency)
+    echo "Enabling custom modules..."
+    if [ -d "$DRUPAL_ROOT/modules/custom/safe_smart_accounts" ]; then
+        echo "Enabling safe_smart_accounts..."
+        $DRUSH en safe_smart_accounts -y || echo "Failed to enable safe_smart_accounts"
+    fi
+    if [ -d "$DRUPAL_ROOT/modules/custom/group_treasury" ]; then
+        echo "Enabling group_treasury..."
+        $DRUSH en group_treasury -y || echo "Failed to enable group_treasury"
+    fi
 else
     echo "Open Social already installed, skipping installation."
 
@@ -203,6 +214,25 @@ else
         $DRUSH en siwe_login -y || echo "Failed to enable SIWE Login module"
     else
         echo "SIWE Login module is already enabled."
+    fi
+
+    # Enable custom modules if not already enabled
+    echo "Checking custom modules..."
+    if [ -d "$DRUPAL_ROOT/modules/custom/safe_smart_accounts" ]; then
+        if ! $DRUSH pm-list --field=status --filter='safe_smart_accounts' | grep -q "Enabled"; then
+            echo "Enabling safe_smart_accounts..."
+            $DRUSH en safe_smart_accounts -y || echo "Failed to enable safe_smart_accounts"
+        else
+            echo "safe_smart_accounts module is already enabled."
+        fi
+    fi
+    if [ -d "$DRUPAL_ROOT/modules/custom/group_treasury" ]; then
+        if ! $DRUSH pm-list --field=status --filter='group_treasury' | grep -q "Enabled"; then
+            echo "Enabling group_treasury..."
+            $DRUSH en group_treasury -y || echo "Failed to enable group_treasury"
+        else
+            echo "group_treasury module is already enabled."
+        fi
     fi
 fi
 
