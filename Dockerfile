@@ -77,7 +77,7 @@ WORKDIR /var/www/html
 COPY composer.json composer.lock ./
 
 # Copy custom modules directory
-COPY modules/ ./modules/
+COPY modules/custom ./html/modules/custom/
 
 # Install Open Social via Composer (uses composer.lock with resolved dependencies)
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader -v
