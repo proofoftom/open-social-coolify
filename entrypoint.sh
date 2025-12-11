@@ -161,8 +161,24 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
     echo "Enabling Search API Solr module..."
     $DRUSH en search_api_solr -y || echo "Failed to enable Search API Solr module"
 
+    echo "Installing demo content..."
+    $DRUSH en social_demo -y || echo "Failed to enable social_demo module"
+    $DRUSH cr || echo "Failed to clear cache"
+    $DRUSH social-demo:add file user group topic event event_enrollment comment post like || echo "Failed to add demo content"
+
     echo "Enabling SIWE Login module..."
     $DRUSH en siwe_login -y || echo "Failed to enable SIWE Login module"
+
+    # Enable custom modules (safe_smart_accounts first due to dependency)
+    echo "Enabling custom modules..."
+    if [ -d "$DRUPAL_ROOT/modules/custom/safe_smart_accounts" ]; then
+        echo "Enabling safe_smart_accounts..."
+        $DRUSH en safe_smart_accounts -y || echo "Failed to enable safe_smart_accounts"
+    fi
+    if [ -d "$DRUPAL_ROOT/modules/custom/group_treasury" ]; then
+        echo "Enabling group_treasury..."
+        $DRUSH en group_treasury -y || echo "Failed to enable group_treasury"
+    fi
 else
     echo "Open Social already installed, skipping installation."
 
@@ -199,6 +215,25 @@ else
     else
         echo "SIWE Login module is already enabled."
     fi
+
+    # Enable custom modules if not already enabled
+    echo "Checking custom modules..."
+    if [ -d "$DRUPAL_ROOT/modules/custom/safe_smart_accounts" ]; then
+        if ! $DRUSH pm-list --field=status --filter='safe_smart_accounts' | grep -q "Enabled"; then
+            echo "Enabling safe_smart_accounts..."
+            $DRUSH en safe_smart_accounts -y || echo "Failed to enable safe_smart_accounts"
+        else
+            echo "safe_smart_accounts module is already enabled."
+        fi
+    fi
+    if [ -d "$DRUPAL_ROOT/modules/custom/group_treasury" ]; then
+        if ! $DRUSH pm-list --field=status --filter='group_treasury' | grep -q "Enabled"; then
+            echo "Enabling group_treasury..."
+            $DRUSH en group_treasury -y || echo "Failed to enable group_treasury"
+        else
+            echo "group_treasury module is already enabled."
+        fi
+    fi
 fi
 
 # Configure SIWE Login expected domain (for both fresh and existing installations)
@@ -226,8 +261,17 @@ if $DRUSH pm-list --field=status --filter='siwe_login' | grep -q "Enabled"; then
     fi
 fi
 
+# Install or update composer dependencies
+echo "Installing/updating composer dependencies..."
+cd "$PROJECT_ROOT"
+composer install --no-interaction --optimize-autoloader --no-dev
+if [ $? -ne 0 ]; then
+    echo "Composer install failed, trying composer update..."
+    composer update --no-interaction --optimize-autoloader --no-dev
+fi
+
 # Ensure proper permissions after install
-chown -R www-data:www-data "$FILES_DIR"
+chown -R www-data:www-data "$DRUPAL_ROOT/sites/default/files"
 chown -R www-data:www-data "$PRIVATE_DIR"
 
 # Run any pending database updates
@@ -237,7 +281,7 @@ $DRUSH updatedb -y || true
 
 # Clear cache
 echo "Clearing cache..."
-$DRUSH cache:rebuild || true
+$DRUSH cr || true
 
 echo "=============================================="
 echo "Starting Apache..."
