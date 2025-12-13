@@ -9,8 +9,9 @@
         "goalgorilla/open_social": "~13.0.0-beta2",
         "php": "^8.0",
         "monolog/monolog": "^2.3.5",
-        "drush/drush": "^13.6",
-        "drupal/siwe_login": "1.0.x-dev"
+        "drush/drush": "^13.7",
+        "drupal/siwe_login": "1.0.x-dev",
+        "drupal/safe_smart_accounts": "1.0.x-dev"
     },
     "repositories": [
         {
