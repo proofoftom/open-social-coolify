@@ -166,19 +166,9 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
     $DRUSH cr || echo "Failed to clear cache"
     $DRUSH social-demo:add file user group topic event event_enrollment comment post like || echo "Failed to add demo content"
 
-    echo "Enabling SIWE Login module..."
-    $DRUSH en siwe_login -y || echo "Failed to enable SIWE Login module"
+    echo "Enabling Web3 modules..."
+    $DRUSH en social_group_treasury -y || echo "Failed to enable Web3 modules"
 
-    # Enable custom modules (safe_smart_accounts first due to dependency)
-    echo "Enabling custom modules..."
-    if [ -d "$DRUPAL_ROOT/modules/custom/safe_smart_accounts" ]; then
-        echo "Enabling safe_smart_accounts..."
-        $DRUSH en safe_smart_accounts -y || echo "Failed to enable safe_smart_accounts"
-    fi
-    if [ -d "$DRUPAL_ROOT/modules/custom/group_treasury" ]; then
-        echo "Enabling group_treasury..."
-        $DRUSH en social_group_treasury -y || echo "Failed to enable group_treasury"
-    fi
 else
     echo "Open Social already installed, skipping installation."
 
@@ -207,32 +197,13 @@ else
         echo "Search API Solr module is already enabled."
     fi
 
-    # Enable the SIWE Login module if not already enabled
+    # Enable Web3 modules if not already enabled
     echo "Checking if SIWE Login module is enabled..."
-    if ! $DRUSH pm-list --field=status --filter='siwe_login' | grep -q "Enabled"; then
-        echo "Enabling SIWE Login module..."
-        $DRUSH en siwe_login -y || echo "Failed to enable SIWE Login module"
+    if ! $DRUSH pm-list --field=status --filter='social_group_treasury' | grep -q "Enabled"; then
+        echo "Enabling Web3 modules..."
+        $DRUSH en social_group_treasury -y || echo "Failed to enable Web3 modules"
     else
-        echo "SIWE Login module is already enabled."
-    fi
-
-    # Enable custom modules if not already enabled
-    echo "Checking custom modules..."
-    if [ -d "$DRUPAL_ROOT/modules/custom/safe_smart_accounts" ]; then
-        if ! $DRUSH pm-list --field=status --filter='safe_smart_accounts' | grep -q "Enabled"; then
-            echo "Enabling safe_smart_accounts..."
-            $DRUSH en safe_smart_accounts -y || echo "Failed to enable safe_smart_accounts"
-        else
-            echo "safe_smart_accounts module is already enabled."
-        fi
-    fi
-    if [ -d "$DRUPAL_ROOT/modules/custom/group_treasury" ]; then
-        if ! $DRUSH pm-list --field=status --filter='group_treasury' | grep -q "Enabled"; then
-            echo "Enabling group_treasury..."
-            $DRUSH en social_group_treasury -y || echo "Failed to enable group_treasury"
-        else
-            echo "group_treasury module is already enabled."
-        fi
+        echo "Web3 modules are already enabled."
     fi
 fi
 
