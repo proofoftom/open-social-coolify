@@ -1,17 +1,18 @@
 {
-    "name": "goalgorilla/open-social-project",
+    "name": "proofoftom/localnodes-coolify",
     "description": "Open Social project for Coolify deployment",
     "type": "project",
     "license": "GPL-2.0+",
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
-        "goalgorilla/open_social": "~13.0.0-beta2",
-        "php": "^8.0",
-        "monolog/monolog": "^2.3.5",
-        "drush/drush": "^13.7",
+        "drupal/group_treasury": "1.0.x-dev",
+        "drupal/safe_smart_accounts": "1.0.x-dev",
         "drupal/siwe_login": "1.0.x-dev",
-        "drupal/safe_smart_accounts": "1.0.x-dev"
+        "drush/drush": "^13.7",
+        "goalgorilla/open_social": "~13.0.0-beta2",
+        "monolog/monolog": "^2.3.5",
+        "php": "^8.0"
     },
     "repositories": [
         {

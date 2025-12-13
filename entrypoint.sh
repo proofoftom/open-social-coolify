@@ -177,7 +177,7 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
     fi
     if [ -d "$DRUPAL_ROOT/modules/custom/group_treasury" ]; then
         echo "Enabling group_treasury..."
-        $DRUSH en group_treasury -y || echo "Failed to enable group_treasury"
+        $DRUSH en social_group_treasury -y || echo "Failed to enable group_treasury"
     fi
 else
     echo "Open Social already installed, skipping installation."
@@ -229,7 +229,7 @@ else
     if [ -d "$DRUPAL_ROOT/modules/custom/group_treasury" ]; then
         if ! $DRUSH pm-list --field=status --filter='group_treasury' | grep -q "Enabled"; then
             echo "Enabling group_treasury..."
-            $DRUSH en group_treasury -y || echo "Failed to enable group_treasury"
+            $DRUSH en social_group_treasury -y || echo "Failed to enable group_treasury"
         else
             echo "group_treasury module is already enabled."
         fi

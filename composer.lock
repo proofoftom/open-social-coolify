@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "da2d20d63c83aff66daf8adfc274e4a4",
+    "content-hash": "db5f2f9c75b3d53bcb03d276fad73c32",
     "packages": [
         {
             "name": "asm89/stack-cors",
@@ -4066,6 +4066,58 @@
             "support": {
                 "source": "https://git.drupalcode.org/project/group",
                 "issues": "https://drupal.org/project/issues/group"
+            }
+        },
+        {
+            "name": "drupal/group_treasury",
+            "version": "dev-1.0.x",
+            "source": {
+                "type": "git",
+                "url": "https://git.drupalcode.org/project/group_treasury.git",
+                "reference": "80ee45e65213a6eb2597db6beebfa7ffff7c77e2"
+            },
+            "require": {
+                "drupal/core": "^10",
+                "drupal/group": "*",
+                "drupal/safe_smart_accounts": "*",
+                "php": ">=8.2"
+            },
+            "require-dev": {
+                "drupal/social_group": "*"
+            },
+            "type": "drupal-module",
+            "extra": {
+                "branch-alias": {
+                    "dev-1.0.x": "1.0.x-dev"
+                },
+                "drupal": {
+                    "version": "0.0.1",
+                    "datestamp": "1765624719",
+                    "security-coverage": {
+                        "status": "not-covered",
+                        "message": "Project has not opted into security advisory coverage!"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Drupal\\group_treasury\\": "src/"
+                }
+            },
+            "notification-url": "https://packages.drupal.org/8/downloads",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "proofoftom",
+                    "homepage": "https://www.drupal.org/user/2310312"
+                }
+            ],
+            "description": "Integrates Safe Smart Accounts as treasuries for Drupal Groups",
+            "homepage": "https://www.drupal.org/project/group_treasury",
+            "support": {
+                "source": "https://git.drupalcode.org/project/group_treasury"
             }
         },
         {
@@ -15732,6 +15784,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
+        "drupal/group_treasury": 20,
         "drupal/safe_smart_accounts": 20,
         "drupal/siwe_login": 20
     },
