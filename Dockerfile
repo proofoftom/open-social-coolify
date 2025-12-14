@@ -66,7 +66,7 @@ RUN { \
     echo 'max_input_vars = 5000'; \
     echo 'realpath_cache_size = 4096k'; \
     echo 'realpath_cache_ttl = 600'; \
-} > /usr/local/etc/php/conf.d/drupal.ini
+    } > /usr/local/etc/php/conf.d/drupal.ini
 
 # Install Composer (keep for drush and potential runtime needs)
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -82,7 +82,7 @@ COPY html/ ./html/
 COPY composer.json composer.lock ./
 
 # Copy custom modules to the container (overwrite any scaffolded placeholders)
-COPY ./modules/custom/ /var/www/html/html/modules/custom/
+COPY ./html/modules/custom/ /var/www/html/html/modules/custom/
 RUN chown -R www-data:www-data /var/www/html/html/modules/custom
 
 # Create files directories and ensure sites/default is writable
