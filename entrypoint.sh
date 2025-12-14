@@ -232,13 +232,17 @@ if $DRUSH pm-list --field=status --filter='siwe_login' | grep -q "Enabled"; then
     fi
 fi
 
-# Install or update composer dependencies
-echo "Installing/updating composer dependencies..."
-cd "$PROJECT_ROOT"
-composer install --no-interaction --optimize-autoloader --no-dev
-if [ $? -ne 0 ]; then
-    echo "Composer install failed, trying composer update..."
-    composer update --no-interaction --optimize-autoloader --no-dev
+# Optionally install/update composer dependencies
+if [ "${RUN_COMPOSER_INSTALL:-false}" = "true" ]; then
+    echo "Installing/updating composer dependencies..."
+    cd "$PROJECT_ROOT"
+    composer install --no-interaction --optimize-autoloader --no-dev
+    if [ $? -ne 0 ]; then
+        echo "Composer install failed, trying composer update..."
+        composer update --no-interaction --optimize-autoloader --no-dev
+    fi
+else
+    echo "Skipping composer install (RUN_COMPOSER_INSTALL not set)"
 fi
 
 # Ensure proper permissions after install

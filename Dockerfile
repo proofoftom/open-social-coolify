@@ -68,19 +68,21 @@ RUN { \
     echo 'realpath_cache_ttl = 600'; \
 } > /usr/local/etc/php/conf.d/drupal.ini
 
-# Install Composer
+# Install Composer (keep for drush and potential runtime needs)
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy composer.json and composer.lock for Open Social with patching enabled
+# Copy pre-built composer dependencies (vendor + scaffolded Drupal)
+# Dependencies are built by: composer install --no-dev --optimize-autoloader
+# - Locally: run composer install before docker compose build
+# - Coolify: configure pre-build command in Coolify dashboard
+COPY vendor/ ./vendor/
+COPY html/ ./html/
 COPY composer.json composer.lock ./
 
-# Install Open Social via Composer (uses composer.lock with resolved dependencies)
-RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader -v
-
-# Copy custom modules to the container
-COPY ./modules/custom /var/www/html/html/modules/custom
+# Copy custom modules to the container (overwrite any scaffolded placeholders)
+COPY ./modules/custom/ /var/www/html/html/modules/custom/
 RUN chown -R www-data:www-data /var/www/html/html/modules/custom
 
 # Create files directories and ensure sites/default is writable

@@ -1,0 +1,28 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Development tools
+.ddev
+.editorconfig
+
+# Documentation
+*.md
+!README.md
+
+# IDE and editor files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Local development files
+private/
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store
+
+# NOTE: vendor/ and html/ are NOT excluded - they contain pre-built dependencies

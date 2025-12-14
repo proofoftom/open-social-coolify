@@ -29,6 +29,8 @@ services:
       SERVICE_URL_OPENSOCIAL: ${SERVICE_URL_OPENSOCIAL:-}
       COOLIFY_FQDN: ${COOLIFY_FQDN:-}
       COOLIFY_URL: ${COOLIFY_URL:-}
+      # Build optimization - set to true to run composer install at container startup
+      RUN_COMPOSER_INSTALL: ${RUN_COMPOSER_INSTALL:-false}
     volumes:
       - opensocial_files:/var/www/html/html/sites/default/files
       - opensocial_private:/var/www/private
@@ -39,10 +41,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/core/install.php"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 45s
     labels:
       - "coolify.managed=true"
 
