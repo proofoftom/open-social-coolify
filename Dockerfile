@@ -13,10 +13,11 @@ COPY composer.json composer.lock ./
 COPY html/ ./html/
 
 # Install dependencies
+# --ignore-platform-reqs: skip ext-gd check (production image has it)
 # --prefer-dist: faster downloads
 # --no-dev: skip development dependencies
 # --optimize-autoloader: generate optimized autoload files
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --ignore-platform-reqs
 
 # ============================================
 # Stage 2: Production image
