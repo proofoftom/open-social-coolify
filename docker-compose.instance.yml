@@ -1,8 +1,14 @@
+# docker-compose.instance.yml
+# Use this for deploying instances that pull pre-built images from your registry.
+# For building images, use docker-compose.yml instead.
+#
+# Coolify workflow:
+#   1. Builder resource: uses docker-compose.yml, pushes to registry.localnodes.xyz
+#   2. Instance resources: use this file, pull from registry.localnodes.xyz
+
 services:
   opensocial:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: registry.localnodes.xyz/opensocial:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
       # Database connection
@@ -64,9 +70,7 @@ services:
       start_period: 30s
 
   solr:
-    build:
-      context: .
-      dockerfile: Dockerfile.solr
+    image: registry.localnodes.xyz/opensocial-solr:${IMAGE_TAG:-latest}
     restart: unless-stopped
     volumes:
       - solr_data:/var/solr

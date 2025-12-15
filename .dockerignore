@@ -25,4 +25,6 @@ private/
 *.tmp
 .DS_Store
 
-# NOTE: vendor/ and html/ are NOT excluded - they contain pre-built dependencies
+# NOTE: html/ is NOT excluded - it contains custom modules/profiles/themes
+# that need to be copied to the build context for composer scaffolding.
+# vendor/ is gitignored and won't exist, but we don't need to exclude it here.

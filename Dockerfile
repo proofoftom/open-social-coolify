@@ -1,3 +1,26 @@
+# ============================================
+# Stage 1: Composer build
+# ============================================
+FROM composer:2 AS builder
+
+WORKDIR /app
+
+# Copy composer files first (better layer caching)
+COPY composer.json composer.lock ./
+
+# Copy custom code directories that need to be scaffolded
+# These are merged into the final html/ structure by composer
+COPY html/ ./html/
+
+# Install dependencies
+# --prefer-dist: faster downloads
+# --no-dev: skip development dependencies
+# --optimize-autoloader: generate optimized autoload files
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+# ============================================
+# Stage 2: Production image
+# ============================================
 FROM php:8.3-apache
 
 # Install system dependencies (including libraries for GD with WebP support and GMP for SIWE)
@@ -73,17 +96,10 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy pre-built composer dependencies (vendor + scaffolded Drupal)
-# Dependencies are built by: composer install --no-dev --optimize-autoloader
-# - Locally: run composer install before docker compose build
-# - Coolify: configure pre-build command in Coolify dashboard
-COPY vendor/ ./vendor/
-COPY html/ ./html/
+# Copy built artifacts from builder stage
+COPY --from=builder /app/vendor ./vendor/
+COPY --from=builder /app/html ./html/
 COPY composer.json composer.lock ./
-
-# Copy custom modules to the container (overwrite any scaffolded placeholders)
-COPY ./html/modules/custom/ /var/www/html/html/modules/custom/
-RUN chown -R www-data:www-data /var/www/html/html/modules/custom
 
 # Create files directories and ensure sites/default is writable
 RUN mkdir -p html/sites/default/files \
