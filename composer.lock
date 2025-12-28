@@ -6792,7 +6792,7 @@
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/project/siwe_login.git",
-                "reference": "5615e1e9c2523d22861f1f21a72aff42b12d2214"
+                "reference": "39d0642dcf2862e4496ee2afe514abfd59137dd3"
             },
             "require": {
                 "drupal/core": "^10 || ^11",
@@ -6807,7 +6807,7 @@
                 },
                 "drupal": {
                     "version": "1.0.x-dev",
-                    "datestamp": "1766841691",
+                    "datestamp": "1766880658",
                     "security-coverage": {
                         "status": "not-covered",
                         "message": "Project has not opted into security advisory coverage!"
