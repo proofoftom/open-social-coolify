@@ -6382,7 +6382,7 @@
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/project/safe_smart_accounts.git",
-                "reference": "c1ce65fdb3c64c9a074a0bfe462802564fbab262"
+                "reference": "f5593a6abc2ffbade94021bb15af5bf7f7b10373"
             },
             "require": {
                 "drupal/core": "^10 || ^11",
@@ -6396,7 +6396,7 @@
                 },
                 "drupal": {
                     "version": "0.1.0",
-                    "datestamp": "1766880261",
+                    "datestamp": "1766996779",
                     "security-coverage": {
                         "status": "not-covered",
                         "message": "Project has not opted into security advisory coverage!"
