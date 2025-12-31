@@ -1,6 +1,0 @@
-waap_login.settings:
-  title: 'WaaP Login'
-  description: 'Configure WaaP Login authentication settings.'
-  route_name: waap_login.settings
-  parent: user.admin_index
-  weight: 10
