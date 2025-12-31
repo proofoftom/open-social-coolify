@@ -167,7 +167,7 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
     $DRUSH social-demo:add file user group topic event event_enrollment comment post like || echo "Failed to add demo content"
 
     echo "Enabling Web3 modules..."
-    $DRUSH en social_group_treasury -y || echo "Failed to enable Web3 modules"
+    $DRUSH en siwe_login waap_login safe_smart_accounts group_treasury social_group_treasury -y || echo "Failed to enable Web3 modules"
 
 else
     echo "Open Social already installed, skipping installation."
@@ -198,10 +198,10 @@ else
     fi
 
     # Enable Web3 modules if not already enabled
-    echo "Checking if SIWE Login module is enabled..."
-    if ! $DRUSH pm-list --field=status --filter='social_group_treasury' | grep -q "Enabled"; then
+    echo "Checking if Web3 modules are enabled..."
+    if ! $DRUSH pm-list --field=status --filter='waap_login' | grep -q "Enabled"; then
         echo "Enabling Web3 modules..."
-        $DRUSH en social_group_treasury -y || echo "Failed to enable Web3 modules"
+        $DRUSH en siwe_login waap_login safe_smart_accounts group_treasury social_group_treasury -y || echo "Failed to enable Web3 modules"
     else
         echo "Web3 modules are already enabled."
     fi

@@ -1,0 +1,71 @@
+{#
+/**
+ * @file
+ * WaaP Login - Welcome Email Plain Text Template
+ *
+ * Variables:
+ * - user_name: User's display name or username
+ * - wallet_address: Ethereum wallet address (formatted)
+ * - site_name: Site name from Drupal config
+ * - login_url: URL to login page
+ * - profile_url: URL to user profile page
+ */
+#}
+{{ 'Welcome to %site_name!'|t({ '%site_name': site_name }) }}
+{{ '='|repeat(60) }}
+
+{{ 'Hello %user_name,'|t({ '%user_name': user_name }) }}
+
+{{ 'Congratulations! Your account has been successfully created using WaaP (Wallet as a Protocol).'|t }}
+{{ 'You are now ready to explore everything %site_name has to offer.'|t({ '%site_name': site_name }) }}
+
+{{ '-'|repeat(60) }}
+
+{{ 'Your Account Details:'|t }}
+
+{{ 'Username:'|t }} {{ user_name }}
+{{ 'Wallet Address:'|t }}
+{{ wallet_address }}
+
+{{ '-'|repeat(60) }}
+
+{{ 'Getting Started'|t }}
+
+{{ 'Here are some things you can do next:'|t }}
+
+{{ '* Complete your profile by adding a photo and bio'|t }}
+{{ '* Explore groups and communities that match your interests'|t }}
+{{ '* Connect with other members and start participating in discussions'|t }}
+{{ '* Check out documentation and help resources available'|t }}
+
+{{ '-'|repeat(60) }}
+
+{{ 'Quick Links:'|t }}
+
+{{ 'View Your Profile:'|t }}
+{{ profile_url }}
+
+{{ 'Login to Your Account:'|t }}
+{{ login_url }}
+
+{{ '-'|repeat(60) }}
+
+{{ 'Helpful Resources:'|t }}
+
+{{ '* Login to your account:'|t }} {{ login_url }}
+{{ '* Update your profile settings:'|t }} {{ profile_url }}
+{{ '* Contact support if you need assistance'|t }}
+
+{{ '-'|repeat(60) }}
+
+{{ 'Thank you for joining %site_name. We look forward to seeing you around!'|t({ '%site_name': site_name }) }}
+
+{{ '-'|repeat(60) }}
+
+{{ 'You received this email because you created an account on %site_name using WaaP authentication.'|t({ '%site_name': site_name }) }}
+
+{{ '-'|repeat(60) }}
+
+{{ site_name }} | {{ 'Powered by WaaP'|t }}
+
+{{ '='|repeat(60) }}

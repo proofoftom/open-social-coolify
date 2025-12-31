@@ -1,0 +1,60 @@
+{#
+/**
+ * @file
+ * Default theme implementation for WaaP login button.
+ *
+ * Available variables:
+ * - authentication_methods: Array of enabled authentication methods ['email', 'social', 'wallet']
+ * - walletconnect_project_id: WalletConnect project ID string
+ * - enable_dark_mode: Boolean for dark mode
+ * - show_secured_badge: Boolean for showing "Secured by Human.tech" badge
+ *
+ * @ingroup themeable
+ */
+#}
+<div class="waap-login-block" role="region" aria-label="{{ 'WaaP Login'|t }}">
+  <div class="waap-login-container">
+    {# Primary login button #}
+    <button type="button" class="waap-login-button waap-login-button--primary js-waap-login" aria-label="{{ 'Login with WaaP using email, social, or wallet'|t }}" title="{{ 'Click to login with WaaP'|t }}">
+      <span class="waap-login-button__icon" aria-hidden="true"></span>
+      <span class="waap-login-button__text">{{ 'Login with WaaP'|t }}</span>
+    </button>
+
+    {# Additional authentication method buttons if configured #}
+    {% if authentication_methods is iterable and (authentication_methods|length) > 0 %}
+      <div class="waap-login-methods">
+        {% if 'email' in authentication_methods %}
+          <button type="button" class="waap-login-button waap-login-button--email js-waap-login-email" aria-label="{{ 'Login with email'|t }}">
+            <span class="waap-login-button__icon waap-login-button__icon--email" aria-hidden="true"></span>
+            <span class="waap-login-button__text">{{ 'Email'|t }}</span>
+          </button>
+        {% endif %}
+
+        {% if 'social' in authentication_methods %}
+          <button type="button" class="waap-login-button waap-login-button--social js-waap-login-social" aria-label="{{ 'Login with social account'|t }}">
+            <span class="waap-login-button__icon waap-login-button__icon--social" aria-hidden="true"></span>
+            <span class="waap-login-button__text">{{ 'Social'|t }}</span>
+          </button>
+        {% endif %}
+
+        {% if 'wallet' in authentication_methods %}
+          <button type="button" class="waap-login-button waap-login-button--wallet js-waap-login-wallet" aria-label="{{ 'Login with wallet'|t }}">
+            <span class="waap-login-button__icon waap-login-button__icon--wallet" aria-hidden="true"></span>
+            <span class="waap-login-button__text">{{ 'Wallet'|t }}</span>
+          </button>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {# Description text #}
+    <div class="waap-login-description">{{ 'Connect using email, social, or wallet'|t }}</div>
+
+    {# Secured by Human.tech badge #}
+    {% if show_secured_badge %}
+      <div class="waap-secured-badge" role="img" aria-label="{{ 'Secured by Human.tech'|t }}">
+        <span class="waap-secured-badge__icon" aria-hidden="true"></span>
+        <span class="waap-secured-badge__text">{{ 'Secured by Human.tech'|t }}</span>
+      </div>
+    {% endif %}
+  </div>
+</div>

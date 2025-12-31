@@ -1,0 +1,10 @@
+name: 'WaaP Login'
+type: module
+description: 'Wallet as a Protocol authentication for Drupal using Human.tech WaaP SDK'
+core_version_requirement: ^10 || ^11
+package: Authentication
+dependencies:
+  - drupal:user
+  - drupal:system
+configure: waap_login.settings
+version: 1.0.0-dev

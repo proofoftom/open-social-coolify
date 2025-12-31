@@ -1,0 +1,66 @@
+waap_login.settings:
+  type: config_object
+  label: 'WaaP Login settings'
+  mapping:
+    enabled:
+      type: boolean
+      label: 'Enable WaaP Login'
+      
+    use_staging:
+      type: boolean
+      label: 'Use staging environment'
+      
+    authentication_methods:
+      type: sequence
+      label: 'Enabled authentication methods'
+      sequence:
+        type: string
+        label: 'Authentication method'
+      # Options: email, phone, social, wallet
+      
+    allowed_socials:
+      type: sequence
+      label: 'Allowed social providers'
+      sequence:
+        type: string
+        label: 'Social provider'
+      # Options: google, twitter, discord, coinbase, linkedin, apple, github
+      
+    walletconnect_project_id:
+      type: string
+      label: 'WalletConnect Project ID'
+      
+    enable_dark_mode:
+      type: boolean
+      label: 'Enable dark mode'
+      
+    show_secured_badge:
+      type: boolean
+      label: 'Show secured by Human.tech badge'
+      
+    # User Management
+    require_email_verification:
+      type: boolean
+      label: 'Require email verification for new users'
+      
+    require_username:
+      type: boolean
+      label: 'Require custom username'
+      
+    auto_create_users:
+      type: boolean
+      label: 'Automatically create user accounts'
+      
+    # Session Management
+    session_ttl:
+      type: integer
+      label: 'Session TTL in seconds'
+      
+    # Integration
+    referral_code:
+      type: string
+      label: 'Referral code'
+      
+    gas_tank_enabled:
+      type: boolean
+      label: 'Enable Gas Tank for sponsored transactions'

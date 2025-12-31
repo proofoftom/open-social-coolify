@@ -1,0 +1,68 @@
+waap_login.verify:
+  path: '/waap/verify'
+  defaults:
+    _controller: '\Drupal\waap_login\Controller\WaapAuthController::verify'
+  requirements:
+    _access: 'TRUE'
+  options:
+    _admin_route: FALSE
+
+waap_login.status:
+  path: '/waap/status'
+  defaults:
+    _controller: '\Drupal\waap_login\Controller\WaapAuthController::getStatus'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+  options:
+    _admin_route: FALSE
+
+waap_login.logout:
+  path: '/waap/logout'
+  defaults:
+    _controller: '\Drupal\waap_login\Controller\WaapAuthController::logout'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+  options:
+    _admin_route: FALSE
+
+waap_login.email_verification_form:
+  path: '/waap/email-verification'
+  defaults:
+    _form: '\Drupal\waap_login\Form\EmailVerificationForm'
+    _title: 'Email Verification'
+  requirements:
+    _access: 'TRUE'
+  options:
+    _admin_route: FALSE
+
+waap_login.email_verification_confirm:
+  path: '/waap/email-verification/{uid}/{timestamp}/{hash}'
+  defaults:
+    _controller: '\Drupal\waap_login\Controller\EmailVerificationController::confirm'
+    _title: 'Email Verification Confirmation'
+    uid: 0
+  requirements:
+    _access: 'TRUE'
+    uid: \d+
+  options:
+    _admin_route: FALSE
+
+waap_login.username_creation_form:
+  path: '/waap/create-username'
+  defaults:
+    _form: '\Drupal\waap_login\Form\UsernameCreationForm'
+    _title: 'Create Username'
+  requirements:
+    _access: 'TRUE'
+  options:
+    _admin_route: FALSE
+
+waap_login.settings:
+  path: '/admin/config/people/waap'
+  defaults:
+    _form: '\Drupal\waap_login\Form\WaapSettingsForm'
+    _title: 'WaaP Login Settings'
+  requirements:
+    _permission: 'administer waap login settings'
+  options:
+    _admin_route: TRUE

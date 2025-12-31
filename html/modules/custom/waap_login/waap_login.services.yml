@@ -1,0 +1,31 @@
+services:
+  waap_login.auth_service:
+    class: Drupal\waap_login\Service\WaapAuthService
+    arguments:
+      - '@entity_type.manager'
+      - '@session'
+      - '@user.auth'
+      - '@logger.factory'
+      - '@waap_login.user_manager'
+      - '@waap_login.session_validator'
+      - '@config.factory'
+      - '@module_handler'
+      - '@flood'
+      - '@csrf_token'
+
+  waap_login.user_manager:
+    class: Drupal\waap_login\Service\WaapUserManager
+    arguments:
+      - '@entity_type.manager'
+      - '@logger.factory'
+      - '@current_user'
+      - '@language_manager'
+      - '@password'
+
+  waap_login.session_validator:
+    class: Drupal\waap_login\Service\WaapSessionValidator
+    arguments:
+      - '@session'
+      - '@logger.factory'
+      - '@config.factory'
+      - '@keyvalue'

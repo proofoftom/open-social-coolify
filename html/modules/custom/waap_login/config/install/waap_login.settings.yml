@@ -1,0 +1,19 @@
+enabled: true
+use_staging: false
+authentication_methods:
+  - email
+  - social
+  - wallet
+allowed_socials:
+  - google
+  - twitter
+  - discord
+walletconnect_project_id: ''
+enable_dark_mode: true
+show_secured_badge: true
+require_email_verification: false
+require_username: false
+auto_create_users: true
+session_ttl: 86400
+referral_code: ''
+gas_tank_enabled: false

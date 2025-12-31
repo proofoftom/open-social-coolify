@@ -1,0 +1,12 @@
+use waap authentication:
+  title: 'Use WaaP authentication'
+  description: 'Allows users to authenticate using Wallet as a Protocol.'
+
+manage own waap wallet:
+  title: 'Manage own WaaP wallet'
+  description: 'Allows users to manage their own WaaP wallet connection.'
+
+administer waap login settings:
+  title: 'Administer WaaP Login settings'
+  description: 'Configure WaaP Login module settings.'
+  restrict access: true
