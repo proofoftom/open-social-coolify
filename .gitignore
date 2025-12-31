@@ -61,3 +61,4 @@ html/sites/simpletest
 # simpletest
 /.editorconfig
 /.gitattributes
+/.claude
