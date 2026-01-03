@@ -14,17 +14,18 @@
 # html/profiles/contrib
 # html/themes/contrib
 
-html/.csslintrc
-html/.eslintignore
-html/.eslintrc.json
-html/.ht.router.php
-html/.htaccess
-html/INSTALL.txt
-html/README.md
-html/index.php
-html/robots.txt
-html/update.php
-html/web.config
+# Scaffold files - commented out for deployment (files are committed)
+# html/.csslintrc
+# html/.eslintignore
+# html/.eslintrc.json
+# html/.ht.router.php
+# html/.htaccess
+# html/INSTALL.txt
+# html/README.md
+# html/index.php
+# html/robots.txt
+# html/update.php
+# html/web.config
 
 # Vendor directory is now committed to the repo
 # /vendor/
