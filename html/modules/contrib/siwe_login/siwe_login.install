@@ -1,0 +1,546 @@
+<?php
+
+/**
+ * @file
+ * Install and uninstall hooks for the SIWE Login module.
+ */
+
+use Drupal\block\Entity\Block;
+use Drupal\Core\Entity\EntityStorageException;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_install().
+ */
+function siwe_login_install() {
+  // Set the expected_domain to the current host during installation.
+  $config = \Drupal::configFactory()->getEditable('siwe_login.settings');
+  $config->set('expected_domain', \Drupal::request()->getHost())->save();
+
+  // Create field storage for Ethereum address.
+  if (!FieldStorageConfig::loadByName('user', 'field_ethereum_address')) {
+    FieldStorageConfig::create([
+      'field_name' => 'field_ethereum_address',
+      'entity_type' => 'user',
+      'type' => 'string',
+      'settings' => [
+        'max_length' => 42,
+        'case_sensitive' => FALSE,
+        'is_ascii' => TRUE,
+      ],
+      'cardinality' => 1,
+    ])->save();
+  }
+
+  // Create field storage for ENS name.
+  if (!FieldStorageConfig::loadByName('user', 'field_ens_name')) {
+    FieldStorageConfig::create([
+      'field_name' => 'field_ens_name',
+      'entity_type' => 'user',
+      'type' => 'string',
+      'settings' => [
+        'max_length' => 255,
+        'case_sensitive' => FALSE,
+        'is_ascii' => FALSE,
+      ],
+      'cardinality' => 1,
+    ])->save();
+  }
+
+  // Create field for Ethereum address on user entity.
+  if (!FieldConfig::loadByName('user', 'user', 'field_ethereum_address')) {
+    FieldConfig::create([
+      'field_name' => 'field_ethereum_address',
+      'entity_type' => 'user',
+      'bundle' => 'user',
+      'label' => 'Ethereum Address',
+      'description' => 'The Ethereum address associated with this user account.',
+      'required' => FALSE,
+      'translatable' => FALSE,
+      'settings' => [],
+    ])->save();
+  }
+
+  // Grant default permissions.
+  _siwe_login_grant_default_permissions();
+
+  // Place SIWE block and configure account menu visibility.
+  _siwe_login_configure_blocks();
+}
+
+/**
+ * Checks if the current installation is Open Social.
+ *
+ * @return bool
+ *   TRUE if running on Open Social distribution, FALSE otherwise.
+ */
+function _siwe_login_is_open_social(): bool {
+  // Primary check: install profile.
+  if (\Drupal::installProfile() === 'social') {
+    return TRUE;
+  }
+
+  // Secondary check: social_core module (handles edge cases).
+  if (\Drupal::moduleHandler()->moduleExists('social_core')) {
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+/**
+ * Finds the account menu block and its region for the default theme.
+ *
+ * @return array|null
+ *   Array with 'block_id', 'region', and 'weight' keys, or NULL if not found.
+ */
+function _siwe_login_find_account_menu_block(): ?array {
+  $default_theme = \Drupal::config('system.theme')->get('default');
+  $block_storage = \Drupal::entityTypeManager()->getStorage('block');
+
+  // Strategy 1: Try theme-specific account_menu block name pattern.
+  $block = $block_storage->load($default_theme . '_account_menu');
+  if ($block) {
+    return [
+      'block_id' => $block->id(),
+      'region' => $block->getRegion(),
+      'weight' => $block->getWeight(),
+    ];
+  }
+
+  // Strategy 2: Query all blocks for the theme and find one with
+  // 'account_menu' in ID or using 'system_menu_block:account' plugin.
+  $blocks = $block_storage->loadByProperties(['theme' => $default_theme]);
+
+  foreach ($blocks as $block) {
+    $block_id = $block->id();
+
+    // Check for account_menu in block ID.
+    if (stripos($block_id, 'account_menu') !== FALSE) {
+      return [
+        'block_id' => $block_id,
+        'region' => $block->getRegion(),
+        'weight' => $block->getWeight(),
+      ];
+    }
+
+    // Check plugin ID for system_menu_block:account.
+    $plugin_id = $block->getPluginId();
+    if ($plugin_id === 'system_menu_block:account') {
+      return [
+        'block_id' => $block_id,
+        'region' => $block->getRegion(),
+        'weight' => $block->getWeight(),
+      ];
+    }
+  }
+
+  return NULL;
+}
+
+/**
+ * Grants SIWE authentication permission to anonymous and authenticated roles.
+ */
+function _siwe_login_grant_default_permissions(): void {
+  $permission = 'use siwe authentication';
+  $roles = ['anonymous', 'authenticated'];
+
+  foreach ($roles as $role_id) {
+    $role = Role::load($role_id);
+    if ($role instanceof Role) {
+      try {
+        $role->grantPermission($permission);
+        $role->trustData()->save();
+      }
+      catch (EntityStorageException $e) {
+        \Drupal::logger('siwe_login')->error(
+          'Failed to grant SIWE permission to @role: @message',
+          ['@role' => $role_id, '@message' => $e->getMessage()]
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Revokes SIWE authentication permission from anonymous and authenticated.
+ */
+function _siwe_login_revoke_default_permissions(): void {
+  $permission = 'use siwe authentication';
+  $roles = ['anonymous', 'authenticated'];
+
+  foreach ($roles as $role_id) {
+    $role = Role::load($role_id);
+    if ($role instanceof Role && $role->hasPermission($permission)) {
+      try {
+        $role->revokePermission($permission);
+        $role->trustData()->save();
+      }
+      catch (EntityStorageException $e) {
+        \Drupal::logger('siwe_login')->error(
+          'Failed to revoke SIWE permission from @role: @message',
+          ['@role' => $role_id, '@message' => $e->getMessage()]
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Configures SIWE block placement and account menu visibility.
+ */
+function _siwe_login_configure_blocks(): void {
+  // Check if block module is installed.
+  if (!\Drupal::moduleHandler()->moduleExists('block')) {
+    return;
+  }
+
+  $default_theme = \Drupal::config('system.theme')->get('default');
+  $block_storage = \Drupal::entityTypeManager()->getStorage('block');
+  $is_open_social = _siwe_login_is_open_social();
+
+  // Determine target region and weight for SIWE block.
+  $target_region = 'secondary_menu';
+  $target_weight = 0;
+  $account_menu_info = _siwe_login_find_account_menu_block();
+
+  if ($account_menu_info) {
+    $target_region = $account_menu_info['region'];
+    // Place SIWE block just before the account menu (lower weight = earlier).
+    $target_weight = ($account_menu_info['weight'] ?? 0) - 1;
+  }
+  elseif ($is_open_social) {
+    // For Open Social, prefer 'header' region if no account menu found.
+    $target_region = 'header';
+  }
+
+  // Create SIWE login block if it doesn't exist.
+  $block_id = 'siwe_login';
+  $block = $block_storage->load($block_id);
+
+  if (!$block) {
+    $block = $block_storage->create([
+      'id' => $block_id,
+      'plugin' => 'siwe_login_block',
+      'theme' => $default_theme,
+      'region' => $target_region,
+      'weight' => $target_weight,
+      'settings' => [
+        'label' => 'SIWE Login',
+        'label_display' => FALSE,
+        'provider' => 'siwe_login',
+        'button_text' => 'Sign in with Ethereum',
+      ],
+      'visibility' => [
+        'user_role' => [
+          'id' => 'user_role',
+          'roles' => [
+            'anonymous' => 'anonymous',
+          ],
+          'negate' => FALSE,
+          'context_mapping' => [
+            'user' => '@user.current_user_context:current_user',
+          ],
+        ],
+      ],
+    ]);
+    try {
+      $block->save();
+    }
+    catch (EntityStorageException $e) {
+      \Drupal::logger('siwe_login')->error(
+        'Failed to create SIWE login block: @message',
+        ['@message' => $e->getMessage()]
+      );
+    }
+  }
+
+  // Configure account menu visibility.
+  if ($account_menu_info) {
+    if ($is_open_social) {
+      // For Open Social, disable the account menu entirely since:
+      // - Anonymous users use SIWE block to login
+      // - Authenticated users get a different custom menu
+      _siwe_login_disable_account_menu($account_menu_info['block_id']);
+    }
+    else {
+      // For other distributions, set account menu to authenticated-only.
+      _siwe_login_set_account_menu_authenticated_only($account_menu_info['block_id']);
+    }
+  }
+}
+
+/**
+ * Sets account menu block to authenticated-only visibility.
+ *
+ * @param string $block_id
+ *   The block ID to modify.
+ */
+function _siwe_login_set_account_menu_authenticated_only(string $block_id): void {
+  $block = Block::load($block_id);
+  if (!$block) {
+    return;
+  }
+
+  // Store original visibility for uninstall restoration.
+  $original_visibility = $block->get('visibility');
+  \Drupal::state()->set('siwe_login.original_account_menu_visibility', [
+    'block_id' => $block_id,
+    'visibility' => $original_visibility,
+  ]);
+
+  // Set authenticated-only visibility.
+  $visibility = $original_visibility;
+  $visibility['user_role'] = [
+    'id' => 'user_role',
+    'roles' => [
+      'authenticated' => 'authenticated',
+    ],
+    'negate' => FALSE,
+    'context_mapping' => [
+      'user' => '@user.current_user_context:current_user',
+    ],
+  ];
+  $block->set('visibility', $visibility);
+  try {
+    $block->save();
+  }
+  catch (EntityStorageException $e) {
+    \Drupal::logger('siwe_login')->error(
+      'Failed to update account menu visibility: @message',
+      ['@message' => $e->getMessage()]
+    );
+  }
+}
+
+/**
+ * Disables the account menu block entirely.
+ *
+ * @param string $block_id
+ *   The block ID to disable.
+ */
+function _siwe_login_disable_account_menu(string $block_id): void {
+  $block = Block::load($block_id);
+  if (!$block) {
+    return;
+  }
+
+  // Store original state for uninstall restoration.
+  \Drupal::state()->set('siwe_login.original_account_menu_state', [
+    'block_id' => $block_id,
+    'status' => $block->status(),
+  ]);
+
+  // Disable the block.
+  $block->disable();
+  try {
+    $block->save();
+  }
+  catch (EntityStorageException $e) {
+    \Drupal::logger('siwe_login')->error(
+      'Failed to disable account menu block: @message',
+      ['@message' => $e->getMessage()]
+    );
+  }
+}
+
+/**
+ * Restores the original account menu state (re-enables if it was disabled).
+ */
+function _siwe_login_restore_account_menu_state(): void {
+  $saved_state = \Drupal::state()->get('siwe_login.original_account_menu_state');
+
+  if (!$saved_state || empty($saved_state['block_id'])) {
+    return;
+  }
+
+  $block = Block::load($saved_state['block_id']);
+  if (!$block) {
+    return;
+  }
+
+  // Restore original status.
+  if (!empty($saved_state['status'])) {
+    $block->enable();
+  }
+  else {
+    $block->disable();
+  }
+
+  try {
+    $block->save();
+  }
+  catch (EntityStorageException $e) {
+    \Drupal::logger('siwe_login')->error(
+      'Failed to restore account menu state: @message',
+      ['@message' => $e->getMessage()]
+    );
+  }
+}
+
+/**
+ * Restores the original account menu visibility.
+ */
+function _siwe_login_restore_account_menu_visibility(): void {
+  $saved_state = \Drupal::state()->get('siwe_login.original_account_menu_visibility');
+
+  if (!$saved_state || empty($saved_state['block_id'])) {
+    return;
+  }
+
+  $block = Block::load($saved_state['block_id']);
+  if (!$block) {
+    return;
+  }
+
+  // Restore original visibility.
+  $visibility = $saved_state['visibility'] ?? [];
+
+  // If original had no user_role condition, remove it entirely.
+  if (empty($saved_state['visibility']['user_role'])) {
+    unset($visibility['user_role']);
+  }
+
+  $block->set('visibility', $visibility);
+  try {
+    $block->save();
+  }
+  catch (EntityStorageException $e) {
+    \Drupal::logger('siwe_login')->error(
+      'Failed to restore account menu visibility: @message',
+      ['@message' => $e->getMessage()]
+    );
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function siwe_login_uninstall() {
+  // Delete the SIWE login block.
+  if (\Drupal::moduleHandler()->moduleExists('block')) {
+    $block = \Drupal::entityTypeManager()->getStorage('block')->load('siwe_login');
+    if ($block) {
+      $block->delete();
+    }
+
+    // Restore original account menu state/visibility if we modified it.
+    _siwe_login_restore_account_menu_state();
+    _siwe_login_restore_account_menu_visibility();
+  }
+
+  // Delete field configurations first (before storage).
+  $field_config = FieldConfig::loadByName('user', 'user', 'field_ethereum_address');
+  if ($field_config) {
+    $field_config->delete();
+  }
+
+  $field_config = FieldConfig::loadByName('user', 'user', 'field_ens_name');
+  if ($field_config) {
+    $field_config->delete();
+  }
+
+  // Delete field storage (after all field configs are removed).
+  $field_storage = FieldStorageConfig::loadByName('user', 'field_ethereum_address');
+  if ($field_storage) {
+    $field_storage->delete();
+  }
+
+  $field_storage = FieldStorageConfig::loadByName('user', 'field_ens_name');
+  if ($field_storage) {
+    $field_storage->delete();
+  }
+
+  // Revoke permissions.
+  _siwe_login_revoke_default_permissions();
+
+  // Clean up state.
+  \Drupal::state()->delete('siwe_login.original_account_menu_visibility');
+  \Drupal::state()->delete('siwe_login.original_account_menu_state');
+}
+
+/**
+ * Add Web3Onboard configuration settings.
+ */
+function siwe_login_update_9001() {
+  $config = \Drupal::configFactory()->getEditable('siwe_login.settings');
+
+  if ($config->get('web3onboard_enabled') === NULL) {
+    $config
+      ->set('web3onboard_enabled', FALSE)
+      ->set('walletconnect_enabled', FALSE)
+      ->set('walletconnect_project_id', '')
+      ->set('injected_wallets_enabled', TRUE)
+      ->set('app_name', '')
+      ->set('onboard_theme', 'system')
+      ->save();
+  }
+}
+
+/**
+ * Add enhanced ENS resolution configuration settings.
+ *
+ * Adds support for:
+ * - Reverse ENS lookup (address to ENS name)
+ * - Free public RPC fallback endpoints
+ * - ENS caching with configurable TTL
+ */
+function siwe_login_update_9002() {
+  $config = \Drupal::configFactory()->getEditable('siwe_login.settings');
+
+  // Add reverse ENS lookup setting (enabled by default).
+  if ($config->get('enable_reverse_ens_lookup') === NULL) {
+    $config->set('enable_reverse_ens_lookup', TRUE);
+  }
+
+  // Add fallback RPC URLs (empty by default, public endpoints are built-in).
+  if ($config->get('ethereum_fallback_urls') === NULL) {
+    $config->set('ethereum_fallback_urls', []);
+  }
+
+  // Add ENS cache TTL (1 hour default).
+  if ($config->get('ens_cache_ttl') === NULL) {
+    $config->set('ens_cache_ttl', 3600);
+  }
+
+  // Clear the old Alchemy placeholder if it's still the default.
+  $current_url = $config->get('ethereum_provider_url');
+  if ($current_url === 'https://eth-mainnet.g.alchemy.com/v2/<YOUR_ALCHEMY_KEY>') {
+    $config->set('ethereum_provider_url', '');
+  }
+
+  $config->save();
+
+  return t('Added enhanced ENS resolution configuration: reverse lookup, fallback RPC endpoints, and caching.');
+}
+
+/**
+ * Grant default permissions and configure account menu for Open Social.
+ */
+function siwe_login_update_9003() {
+  // Grant default permissions if not already granted.
+  _siwe_login_grant_default_permissions();
+
+  // Configure account menu if not already done.
+  $existing_state = \Drupal::state()->get('siwe_login.original_account_menu_state');
+  $existing_visibility = \Drupal::state()->get('siwe_login.original_account_menu_visibility');
+
+  // Only configure if we haven't already stored original state.
+  if (!$existing_state && !$existing_visibility) {
+    $is_open_social = _siwe_login_is_open_social();
+    $account_menu_info = _siwe_login_find_account_menu_block();
+
+    if ($account_menu_info) {
+      if ($is_open_social) {
+        _siwe_login_disable_account_menu($account_menu_info['block_id']);
+      }
+      else {
+        _siwe_login_set_account_menu_authenticated_only($account_menu_info['block_id']);
+      }
+    }
+  }
+
+  return t('Configured default permissions and account menu visibility.');
+}

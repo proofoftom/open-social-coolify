@@ -1,0 +1,21 @@
+{
+    "name": "drupal/siwe_login",
+    "description": "Ethereum wallet-based authentication for Drupal using Sign-In with Ethereum",
+    "type": "drupal-module",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "kornrunner/keccak": "^1.0",
+        "simplito/elliptic-php": "^1.0",
+        "web3p/web3.php": "^0.3.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Drupal\\siwe_login\\": "src/"
+        }
+    },
+    "extra": {
+        "drupal": {
+            "version": "1.0.x-dev"
+        }
+    }
+}

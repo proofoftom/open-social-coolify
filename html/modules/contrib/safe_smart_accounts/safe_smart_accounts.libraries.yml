@@ -1,0 +1,90 @@
+# Safe Protocol SDK - bundled from @safe-global/protocol-kit
+# Install via: npm install (in module directory)
+safe_sdk:
+  remote: https://github.com/safe-global/safe-core-sdk
+  version: 5.x
+  license:
+    name: MIT
+    url: https://github.com/safe-global/safe-core-sdk/blob/main/LICENSE.md
+    gpl-compatible: true
+  js:
+    libraries/safe-sdk/protocol-kit.bundle.js: { minified: true }
+  dependencies:
+    - core/once
+
+# Ethers.js v6 - required for blockchain interactions
+ethers:
+  remote: https://github.com/ethers-io/ethers.js
+  version: 6.x
+  license:
+    name: MIT
+    url: https://github.com/ethers-io/ethers.js/blob/main/LICENSE.md
+    gpl-compatible: true
+  js:
+    https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js: { type: external, minified: true }
+
+safe_accounts:
+  version: 1.x
+  css:
+    theme:
+      css/safe-accounts.css: {}
+
+transaction_form:
+  version: 1.x
+  js:
+    js/transaction-form.js: {}
+  dependencies:
+    - core/drupal
+
+transaction_manager:
+  version: 1.x
+  js:
+    js/transaction-manager.js: {}
+  dependencies:
+    - core/drupal
+    - safe_smart_accounts/safe_sdk
+    - safe_smart_accounts/ethers
+    - safe_smart_accounts/sdk_manager
+
+safe_deployment:
+  version: 1.x
+  js:
+    js/safe-deployment.js: {}
+  css:
+    theme:
+      css/safe-deployment-status.css: {}
+  dependencies:
+    - core/drupal
+    - core/drupal.ajax
+    - safe_smart_accounts/safe_sdk
+    - safe_smart_accounts/ethers
+    - safe_smart_accounts/sdk_manager
+
+configuration_manager:
+  version: 1.x
+  js:
+    js/safe-configuration-manager.js: {}
+  dependencies:
+    - core/drupal
+    - safe_smart_accounts/safe_sdk
+    - safe_smart_accounts/ethers
+    - safe_smart_accounts/sdk_manager
+
+# SDK Manager - async singleton for Safe Protocol Kit initialization
+sdk_manager:
+  version: 1.x
+  js:
+    js/safe-sdk-manager.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
+    - safe_smart_accounts/safe_sdk
+    - safe_smart_accounts/ethers
+
+safe_accounts_cards:
+  version: 1.x
+  css:
+    theme:
+      css/safe-accounts-cards.css: {}
+  dependencies:
+    - socialbase/base

@@ -1,0 +1,10 @@
+name: AI Observability
+description: Logs AI requests to the Drupal Logger and OpenTelemetry.
+package: AI
+type: module
+core_version_requirement: ^10.2 || ^11
+configure: ai_observability.settings
+tags:
+  - developer
+dependencies:
+  - ai:ai

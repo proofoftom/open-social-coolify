@@ -1,0 +1,14 @@
+siwe_login.mail:
+  type: config_object
+  label: "SIWE Login mail templates"
+  mapping:
+    email_verification:
+      type: mapping
+      label: "Email verification"
+      mapping:
+        subject:
+          type: text
+          label: "Subject"
+        body:
+          type: text
+          label: "Body"

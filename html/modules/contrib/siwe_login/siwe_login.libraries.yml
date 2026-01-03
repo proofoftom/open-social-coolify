@@ -1,0 +1,27 @@
+siwe_login_js:
+  version: 1.x
+  js:
+    https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js:
+      { type: external }
+    js/siwe-browser-wrapper.js: {}
+    js/siwe-login.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+
+siwe_login_web3onboard:
+  version: 1.x
+  js:
+    js/siwe-web3onboard.js:
+      { attributes: { type: module } }
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/once
+
+siwe_login_styles:
+  version: 1.x
+  css:
+    theme:
+      css/siwe-login.css: {}

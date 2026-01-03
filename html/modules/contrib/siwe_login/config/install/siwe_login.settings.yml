@@ -1,0 +1,20 @@
+# Note: expected_domain is set automatically during installation
+# See siwe_login.install for details
+nonce_ttl: 300
+message_ttl: 600
+require_ens_or_username: false
+require_email_verification: false
+session_timeout: 86400
+enable_ens_validation: true
+enable_reverse_ens_lookup: true
+# Primary RPC URL is optional - free public endpoints are used as fallbacks
+ethereum_provider_url: ""
+ethereum_fallback_urls: []
+# ENS cache TTL in seconds (1 hour default)
+ens_cache_ttl: 3600
+web3onboard_enabled: false
+walletconnect_enabled: false
+walletconnect_project_id: ""
+injected_wallets_enabled: true
+app_name: ""
+onboard_theme: "system"

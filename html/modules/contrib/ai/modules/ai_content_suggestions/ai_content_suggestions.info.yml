@@ -1,0 +1,8 @@
+name: 'AI Content Suggestions'
+type: module
+description: 'Allows a configured AI to be passed content to suggest alterations'
+package: AI
+core_version_requirement: ^10.4 || ^11
+configure: ai_content_suggestions.settings
+dependencies:
+  - ai:ai

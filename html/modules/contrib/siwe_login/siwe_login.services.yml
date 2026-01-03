@@ -1,0 +1,47 @@
+services:
+  siwe_login.rpc_provider_manager:
+    class: Drupal\siwe_login\Service\RpcProviderManager
+    arguments:
+      - "@config.factory"
+
+  siwe_login.ens_resolver:
+    class: Drupal\siwe_login\Service\EnsResolver
+    arguments:
+      - "@siwe_login.rpc_provider_manager"
+      - "@cache.default"
+      - "@logger.factory"
+
+  siwe_login.auth_service:
+    class: Drupal\siwe_login\Service\SiweAuthService
+    arguments:
+      - "@entity_type.manager"
+      - "@session"
+      - "@user.auth"
+      - "@logger.factory"
+      - "@siwe_login.message_validator"
+      - "@siwe_login.user_manager"
+      - "@config.factory"
+      - "@siwe_login.ens_resolver"
+
+  siwe_login.message_validator:
+    class: Drupal\siwe_login\Service\SiweMessageValidator
+    arguments:
+      - "@logger.factory"
+      - "@datetime.time"
+      - "@config.factory"
+      - "@cache.default"
+      - "@siwe_login.ens_resolver"
+
+  siwe_login.user_manager:
+    class: Drupal\siwe_login\Service\EthereumUserManager
+    arguments:
+      - "@entity_type.manager"
+      - "@logger.factory"
+      - "@current_user"
+      - "@language_manager"
+
+  siwe_login.mail:
+    class: Drupal\siwe_login\Plugin\Mail\SiweMail
+    arguments:
+      - "@plugin.manager.mail"
+    tag: mail

@@ -1,0 +1,36 @@
+/**
+ * @file
+ * Custom styles for the SIWE Login block.
+ */
+
+#block-siwe-login {
+  align-content: center;
+  order: 10;
+  margin-left: auto;
+  padding: 6px;
+  margin-bottom: 0;
+}
+
+#block-siwe-login div.form-group {
+  margin-bottom: 0;
+}
+
+#siwe-login-button {
+  margin-inline-end: 0;
+}
+
+/* Web3Onboard modal z-index fix for Drupal admin toolbar */
+.w3o-modal {
+  z-index: 10000 !important;
+}
+
+/* Ensure Web3Onboard styles don't conflict with Drupal */
+#siwe-login-container {
+  display: inline-block;
+}
+
+/* Loading state for button */
+#siwe-login-button[disabled] {
+  opacity: 0.7;
+  cursor: wait;
+}

@@ -1,0 +1,86 @@
+<?php
+
+/**
+ * @file
+ * Open Social integration for Group Treasury module.
+ *
+ * This module provides Open Social-specific theming and block visibility
+ * for the Group Treasury module.
+ */
+
+/**
+ * Implements hook_preprocess_HOOK() for page.
+ *
+ * Unsets complementary regions on treasury form routes to prevent sidebar
+ * layout and allow full-width content display, matching the pattern used by
+ * other Open Social Group management pages like Manage Members.
+ */
+function social_group_treasury_preprocess_page(&$variables) {
+  $route_name = \Drupal::routeMatch()->getRouteName();
+
+  // Treasury form routes that should use full-width layout.
+  $full_width_routes = [
+    'group_treasury.propose_transaction',
+    'group_treasury.create',
+    'group_treasury.reconnect',
+  ];
+
+  if (in_array($route_name, $full_width_routes)) {
+    // Unset complementary regions entirely so they're not rendered.
+    // This prevents the layout--with-complementary class from being added
+    // and ensures full-width layout.
+    unset($variables['page']['complementary_top']);
+    unset($variables['page']['complementary_bottom']);
+  }
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for menu_local_tasks.
+ *
+ * Removes secondary tabs on treasury routes to prevent navbar-secondary.js
+ * from breaking when both primary and secondary tabs are present.
+ *
+ * Open Social's navbar-secondary.js (responsible for tab overflow dropdown)
+ * breaks when both primary and secondary tabs are present. The script queries
+ * for ALL elements with class `.nav` and processes them together, which strips
+ * the `.navbar-scrollable` wrapper and `<ul>` elements from the DOM.
+ */
+function social_group_treasury_preprocess_menu_local_tasks(&$variables) {
+  $route_name = \Drupal::routeMatch()->getRouteName();
+
+  // List of treasury routes where secondary tabs should be hidden.
+  $treasury_routes = [
+    'group_treasury.treasury',
+    'group_treasury.propose_transaction',
+    'group_treasury.create',
+    'group_treasury.reconnect',
+  ];
+
+  // Remove secondary tabs on treasury routes.
+  // The secondary tabs only exist for local task inheritance (to show parent tabs),
+  // but they break the navbar-secondary.js overflow handling when rendered.
+  if (in_array($route_name, $treasury_routes)) {
+    $variables['secondary'] = [];
+  }
+}
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * Attaches Open Social-specific treasury styling on treasury pages.
+ */
+function social_group_treasury_page_attachments(array &$attachments) {
+  $route_name = \Drupal::routeMatch()->getRouteName();
+
+  $treasury_routes = [
+    'group_treasury.treasury',
+    'group_treasury.propose_transaction',
+    'group_treasury.create',
+    'group_treasury.reconnect',
+    'group_treasury.transaction_view',
+  ];
+
+  if (in_array($route_name, $treasury_routes)) {
+    $attachments['#attached']['library'][] = 'social_group_treasury/treasury_opensocial';
+  }
+}

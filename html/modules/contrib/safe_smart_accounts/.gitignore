@@ -1,0 +1,14 @@
+# Node.js dependencies (for SDK rebuilds by maintainers)
+node_modules/
+package-lock.json
+
+# Build artifacts
+scripts/sdk-entry.js
+
+# IDE
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

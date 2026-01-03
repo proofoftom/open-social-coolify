@@ -1,0 +1,11 @@
+name: AI External Moderation (Deprecated)
+description: Provides functionality copied to the AI Core module.
+package: AI
+type: module
+core_version_requirement: ^10.2 || ^11
+lifecycle: deprecated
+lifecycle_link: https://www.drupal.org/project/ai/issues/3479913
+hidden: true
+
+dependencies:
+  - ai:ai

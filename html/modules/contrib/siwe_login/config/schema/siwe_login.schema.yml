@@ -1,0 +1,58 @@
+siwe_login.settings:
+  type: config_object
+  label: "SIWE Login settings"
+  mapping:
+    expected_domain:
+      type: string
+      label: "Expected domain"
+    nonce_ttl:
+      type: integer
+      label: "Nonce TTL"
+    message_ttl:
+      type: integer
+      label: "Message TTL"
+    require_ens_or_username:
+      type: boolean
+      label: "Require ENS or Username"
+    require_email_verification:
+      type: boolean
+      label: "Require email verification"
+    session_timeout:
+      type: integer
+      label: "Session timeout"
+    enable_ens_validation:
+      type: boolean
+      label: "Enable ENS validation"
+    enable_reverse_ens_lookup:
+      type: boolean
+      label: "Enable reverse ENS lookup"
+    ethereum_provider_url:
+      type: string
+      label: "Ethereum provider URL"
+    ethereum_fallback_urls:
+      type: sequence
+      label: "Ethereum fallback RPC URLs"
+      sequence:
+        type: string
+        label: "RPC URL"
+    ens_cache_ttl:
+      type: integer
+      label: "ENS cache TTL in seconds"
+    web3onboard_enabled:
+      type: boolean
+      label: "Enable Web3Onboard"
+    walletconnect_enabled:
+      type: boolean
+      label: "Enable WalletConnect"
+    walletconnect_project_id:
+      type: string
+      label: "WalletConnect Project ID"
+    injected_wallets_enabled:
+      type: boolean
+      label: "Enable Injected Wallets"
+    app_name:
+      type: string
+      label: "Application Name"
+    onboard_theme:
+      type: string
+      label: "Web3Onboard Theme"

@@ -1,0 +1,10 @@
+name: "SIWE Login"
+type: module
+description: "Ethereum wallet-based authentication for Drupal using Sign-In with Ethereum"
+core_version_requirement: ^10 || ^11
+package: Authentication
+dependencies:
+  - drupal:user
+  - drupal:system
+configure: siwe_login.settings
+version: 1.0.0-dev

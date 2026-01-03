@@ -105,24 +105,40 @@ SafeTransaction: draft → pending → executed | failed | cancelled
 
 ### Module Development Workflow
 
-**Important**: Each Web3 module (`siwe_login`, `safe_smart_accounts`, `group_treasury`) is maintained in its own separate Git repository. When making changes to these modules within `open-social-coolify`:
+**Important**: The Web3 modules (`siwe_login`, `safe_smart_accounts`, `group_treasury`) are managed as **git subtrees**. Module files are committed directly to this repository, but can be pushed/pulled to their upstream Drupal.org repositories.
 
-1. **Commit to the module repository**: Changes to module code must be committed and pushed to the module's own repository first
-2. **Update composer.lock**: After pushing module changes, run `composer update drupal/<module_name>` in open-social-coolify to update the lock file
-3. **Commit the lock file**: Push the updated `composer.lock` to open-social-coolify
+#### Making Changes to Modules
 
-**For agents working with git worktrees**: After checking out a worktree, run `composer install` to pull the Web3 modules into the project. The modules are installed as Composer dependencies and won't exist in the worktree until installed.
+1. **Edit module files directly** in `html/modules/contrib/<module_name>/`
+2. **Commit to open-social-coolify** as normal:
+   ```bash
+   git add html/modules/contrib/siwe_login/
+   git commit -m "fix(siwe_login): description of change"
+   git push
+   ```
 
+3. **Push changes to module's Drupal.org repository** (when ready to release):
+   ```bash
+   git subtree push --prefix=html/modules/contrib/siwe_login siwe_login 1.0.x
+   git subtree push --prefix=html/modules/contrib/safe_smart_accounts safe_smart_accounts 1.0.x
+   git subtree push --prefix=html/modules/contrib/group_treasury group_treasury 1.0.x
+   ```
+
+#### Pulling Updates from Upstream
+
+If the module was updated on Drupal.org independently:
 ```bash
-# Example workflow for module changes
-cd html/modules/contrib/siwe_login
-git add . && git commit -m "Fix: description" && git push
-
-# Then update open-social-coolify
-cd /path/to/open-social-coolify
-composer update drupal/siwe_login
-git add composer.lock && git commit -m "chore: update siwe_login [update description]" && git push
+git subtree pull --prefix=html/modules/contrib/siwe_login siwe_login 1.0.x --squash
 ```
+
+#### Subtree Remotes
+
+The following remotes are configured for subtree operations:
+- `siwe_login` → `git@git.drupal.org:project/siwe_login.git`
+- `safe_smart_accounts` → `git@git.drupal.org:project/safe_smart_accounts.git`
+- `group_treasury` → `git@git.drupal.org:project/group_treasury.git`
+
+**For agents working with git worktrees**: Module files are already in the repository. No `composer install` needed for the Web3 modules - they are committed directly.
 
 ## AI Modules
 
