@@ -1,0 +1,6 @@
+autowirable
+barebones
+doesnt
+isoptimize
+typehint
+autoconfigurator

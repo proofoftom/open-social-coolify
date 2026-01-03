@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @file
+ * Hooks for Hux Test.
+ */
+
+use Drupal\hux_test\HuxTestCallTracker;
+
+/**
+ * Implements hook_foo().
+ */
+function hux_replacement_test_foo(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements hook_foo2().
+ */
+function hux_replacement_test_foo2(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}

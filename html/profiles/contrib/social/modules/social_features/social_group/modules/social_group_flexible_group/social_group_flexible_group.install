@@ -1,0 +1,451 @@
+<?php
+
+/**
+ * @file
+ * Install and update functions for the social_group_flexible_group module.
+ */
+
+use Drupal\Core\Config\FileStorage;
+use Drupal\group\Entity\GroupInterface;
+use Drupal\group\Entity\GroupRoleInterface;
+use Drupal\group\GroupMembership;
+use Drupal\social_group\Entity\Group;
+use Drupal\user\Entity\User;
+use Drupal\user\RoleInterface;
+use Drupal\user\UserInterface;
+
+/**
+ * Implements hook_install().
+ */
+function social_group_flexible_group_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::ANONYMOUS_ID,
+    [
+      'view public flexible_group group',
+    ]
+  );
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'view public flexible_group group',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'create flexible_group group',
+      'view public flexible_group group',
+      'view community flexible_group group',
+      'view members flexible_group group',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'create flexible_group group',
+      'view public flexible_group group',
+      'view community flexible_group group',
+      'view members flexible_group group',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'view public flexible_group group',
+      'view community flexible_group group',
+      'view members flexible_group group',
+      'create flexible_group group',
+      'create terms in group_type',
+      'edit terms in group_type',
+      'delete terms in group_type',
+    ]
+  );
+
+  // Set module weight higher as the weight of the "Social Group" module because
+  // needs have the Views group type field which added via the "Social Group"
+  // module.
+  module_set_weight('social_group_flexible_group', 5);
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_group_flexible_group_update_last_removed() : int {
+  return 111103;
+}
+
+/**
+ * Add taxonomy permission with the Taxonomy Access Fix is enabled.
+ */
+function social_group_flexible_group_update_120001(): void {
+  // Nothing to do if the module is not installed.
+  if (!\Drupal::moduleHandler()->moduleExists("taxonomy_access_fix")) {
+    return;
+  }
+
+  // Permission to grant.
+  $taxonomy_permissions = [
+    'view terms in group_type',
+    'view term names in group_type',
+    'select terms in group_type',
+  ];
+
+  // Load the permission.
+  $entity_type_manager = \Drupal::entityTypeManager();
+  /** @var \Drupal\user\RoleInterface $role */
+  $role = $entity_type_manager->getStorage('user_role')->load('authenticated');
+
+  // If the role is not have the permission, grant permission.
+  foreach ($taxonomy_permissions as $taxonomy_permission) {
+    if (!$role->hasPermission($taxonomy_permission)) {
+      $role->grantPermission($taxonomy_permission);
+      $role->save();
+    }
+  }
+}
+
+/**
+ * Remove redundant "social_group_type_required" settings.
+ */
+function social_group_flexible_group_update_130000(): void {
+  \Drupal::configFactory()
+    ->getEditable('social_group.settings')
+    ->clear('social_group_type_required')
+    ->save();
+}
+
+/**
+ * Grant permissions for site manager to manage terms in group_type vocabulary.
+ */
+function social_group_flexible_group_update_130001(): void {
+  $permissions = [
+    'create terms in group_type',
+    'edit terms in group_type',
+    'delete terms in group_type',
+  ];
+  user_role_grant_permissions('sitemanager', $permissions);
+}
+
+/**
+ * Add new group permissions to group-member/manager roles.
+ */
+function social_group_flexible_group_update_130002(): void {
+  // After group upgrade 'content' replaced with 'relationship' permission.
+  // So, need to assign new permissions for user roles to adjust access to
+  // group relationship items.
+  $group_permissions['flexible_group-member'] = [
+    'view group_node:topic relationship',
+  ];
+
+  // Group manager.
+  $group_permissions['flexible_group-group_manager'] = $group_permissions['flexible_group-member'];
+
+  /** @var \Drupal\group\Entity\GroupTypeInterface $group_type */
+  $group_type = \Drupal::entityTypeManager()
+    ->getStorage('group_type')
+    ->load('flexible_group');
+
+  foreach ($group_type->getRoles() as $role) {
+    if (!empty($group_permissions[$role->id()])) {
+      $role->grantPermissions($group_permissions[$role->id()])
+        ->save();
+    }
+  }
+}
+
+/**
+ * Move group_admin to group_manager group role.
+ *
+ * Note: this action will be applied only for Site Managers and Content Manager
+ * that are already creators of the group.
+ *
+ * @param array $sandbox
+ *   Stores information for batch updates. See above for more information.
+ *
+ * @return string
+ *   Displays a message about results to user after the update has completed.
+ */
+function social_group_flexible_group_update_130003(array &$sandbox): string {
+  if (!isset($sandbox['progress'])) {
+    $db = \Drupal::database();
+
+    // Fetch users with group_admin role that should be updated.
+    $query = $db->select('group_content__group_roles', 'gcgr');
+    $query->addField('gcgr', 'entity_id');
+    $query->addField('grfd', 'entity_id', 'uid');
+    $query->addField('grfd', 'gid');
+    $query->condition('gcgr.group_roles_target_id', 'flexible_group-group_admin');
+
+    $query->join('group_relationship_field_data', 'grfd', 'grfd.id = gcgr.entity_id');
+
+    $sandbox['ids'] = $query->execute()->fetchAllAssoc('entity_id');
+
+    $sandbox['max'] = count($sandbox['ids']);
+    $sandbox['progress'] = 0;
+  }
+  $items = array_slice($sandbox['ids'], $sandbox['progress'], 25);
+  foreach ($items as $item) {
+    $updated = FALSE;
+    $account = User::load($item->uid);
+    $group = Group::load($item->gid);
+    $manager_role = 'flexible_group-group_manager';
+
+    /** @var \Drupal\group\GroupMembership $membership */
+    $membership = $group->getMember($account);
+
+    if (
+      $membership instanceof GroupMembership &&
+      $account instanceof UserInterface &&
+      $group instanceof GroupInterface
+    ) {
+      $group_relationship = $membership->getGroupRelationship();
+      $member_assigned_roles = array_column($group_relationship->get('group_roles')->getValue(), 'target_id');
+
+      // Apply group role update only for SM/CM role.
+      if ($account->hasRole('sitemanager') || $account->hasRole('contentmanager')) {
+
+        // Assign owner a GM role group.
+        if ($account->id() === $group->getOwnerId()) {
+          // Only if it doesn't assigned yet.
+          if (!in_array($manager_role, $member_assigned_roles)) {
+            $member_assigned_roles[] = $manager_role;
+            $member_assigned_roles = array_map(function ($member_assigned_role) {
+              return ['target_id' => $member_assigned_role];
+            }, $member_assigned_roles);
+            $updated = TRUE;
+          }
+        }
+      }
+      // Remove deprecated Group Admin role.
+      $admin_role = 'flexible_group-group_admin';
+      if (in_array($admin_role, $member_assigned_roles)) {
+        $key = array_search($admin_role, $member_assigned_roles);
+        unset($member_assigned_roles[$key]);
+
+        $member_assigned_roles = array_map(function ($member_assigned_role) {
+          return ['target_id' => $member_assigned_role];
+        }, $member_assigned_roles);
+        $updated = TRUE;
+      }
+
+      // Save updated assigned roles.
+      if ($updated) {
+        $group_relationship->set('group_roles', $member_assigned_roles);
+        $group_relationship->save();
+      }
+    }
+    $sandbox['progress']++;
+  }
+  $sandbox['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+  // Show a status update for the current progress.
+  return t("Checked @progress from @max users.", ['@progress' => $sandbox['progress'], '@max' => $sandbox['max']]);
+}
+
+/**
+ * Create Admin/CM/CS insider roles and delete "group admin" role.
+ */
+function social_group_flexible_group_update_130004(): void {
+  $config_factory = \Drupal::configFactory();
+  $config_path = \Drupal::service('extension.list.module')->getPath('social_group_flexible_group') . '/config/static';
+  $source = new FileStorage($config_path);
+
+  // Created new roles.
+  foreach (['admin', 'cm', 'sm'] as $id) {
+    $config_name = "group.role.flexible_group-{$id}-insider";
+    $data = $source->read($config_name);
+    if (is_array($data)) {
+      $config_factory->getEditable($config_name)
+        ->setData($data)
+        ->save();
+    }
+  }
+
+  // Delete deprecated role.
+  $config_factory->getEditable('group.role.flexible_group-group_admin')->delete();
+}
+
+/**
+ * Install the "Social Email Broadcast" module.
+ */
+function social_group_flexible_group_update_130005() : void {
+  if (!\Drupal::moduleHandler()->moduleExists('social_email_broadcast')) {
+    \Drupal::service('module_installer')->install(['social_email_broadcast']);
+  }
+}
+
+/**
+ * Add 'Verified' group role for Flexible group type.
+ */
+function social_group_flexible_group_update_130006(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+  // Load existing "Verified" group role.
+  $verified_roles = \Drupal::entityTypeManager()
+    ->getStorage('group_role')
+    ->loadByProperties([
+      'scope' => 'outsider',
+      'global_role' => 'verified',
+      'group_type' => 'flexible_group',
+    ]);
+  // Create "Verified" group role if it isn't exist.
+  if (\Drupal::moduleHandler()->moduleExists('social_group_flexible_group') &&
+    empty($verified_roles)
+  ) {
+    // Execute configuration update definitions with logging of success.
+    $updater->executeUpdate('social_group_flexible_group', __FUNCTION__);
+  }
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+
+}
+
+/**
+ * Revoke group permissions for Outsider and Anonymous roles.
+ */
+function social_group_flexible_group_update_130007(): void {
+  $roles_permissions = [
+    'flexible_group-outsider' => [
+      'view group_membership relationship',
+      'view group stream page',
+    ],
+    'flexible_group-anonymous' => [
+      'view group_membership relationship',
+      'view group stream page',
+    ],
+  ];
+
+  foreach ($roles_permissions as $role_id => $permissions) {
+    /** @var \Drupal\group\Entity\GroupRoleInterface $role */
+    $role = \Drupal::entityTypeManager()->getStorage('group_role')->load($role_id);
+
+    foreach ($permissions as $permission) {
+      $role->revokePermission($permission);
+    }
+
+    $role->save();
+  }
+}
+
+/**
+ * Hidden path from Group Type taxonomy.
+ */
+function social_group_flexible_group_update_130008(): void {
+  $storage = \Drupal::entityTypeManager()->getStorage('entity_form_display');
+  $form_display = $storage->load('taxonomy_term.group_type.default');
+
+  // If the entity-form-display isn't found, return early.
+  if (empty($form_display)) {
+    \Drupal::logger('social_group_flexible_group')->info('The entity-form-display from Group Type taxonomy is empty.');
+    return;
+  }
+
+  // Get fields and check if path is already be hidden.
+  $hidden = $form_display->get('hidden');
+  $content = $form_display->get('content');
+  if (in_array('path', array_keys($hidden))) {
+    \Drupal::logger('social_group_flexible_group')->info('The path field already is hidden on Group Type taxonomy.');
+    return;
+  }
+
+  // Manipulate path field to be hidden and save.
+  $hidden['path'] = TRUE;
+  unset($content['path']);
+  $form_display->set('hidden', $hidden)
+    ->set('content', $content)
+    ->save();
+}
+
+/**
+ * Revoke permissions for Authenticated (outsider) group role.
+ */
+function social_group_flexible_group_update_130009(): void {
+  $group_authenticated_role = \Drupal::entityTypeManager()
+    ->getStorage('group_role')
+    ->load('flexible_group-outsider');
+
+  if ($group_authenticated_role instanceof GroupRoleInterface) {
+    $group_authenticated_role->revokePermissions([
+      'join group',
+      'request group membership',
+    ])->save();
+  }
+
+}
+
+/**
+ * Grant permissions for Verified (outsider) group role.
+ */
+function social_group_flexible_group_update_130010(): void {
+  $group_verified_role = \Drupal::entityTypeManager()
+    ->getStorage('group_role')
+    ->load('flexible_group-verified');
+
+  if ($group_verified_role instanceof GroupRoleInterface) {
+    $group_verified_role->grantPermissions([
+      'join group',
+      'request group membership',
+    ])->save();
+  }
+
+}
+
+/**
+ * Grant new permissions to access to Flexible groups.
+ */
+function social_group_flexible_group_update_130011(): void {
+  $permissions[RoleInterface::ANONYMOUS_ID] =
+  $permissions[RoleInterface::AUTHENTICATED_ID] = ['view public flexible_group group'];
+
+  $permissions['verified'] = [
+    ...$permissions[RoleInterface::AUTHENTICATED_ID],
+    ...[
+      'view community flexible_group group',
+      'view members flexible_group group',
+    ],
+  ];
+  $permissions['contentmanager'] = $permissions['sitemanager'] = $permissions['verified'];
+
+  foreach ($permissions as $rid => $new_permissions) {
+    user_role_grant_permissions($rid, $new_permissions);
+  }
+}
+
+/**
+ * Apply user affiliation feature for flexible group type.
+ */
+function social_group_flexible_group_update_130012(): string {
+  $updater = \Drupal::service('update_helper.updater');
+  $updater->executeUpdate('social_group_flexible_group', __FUNCTION__);
+  return $updater->logger()->output();
+}
+
+/**
+ * Create affiliation entity-form-display for flexible group.
+ */
+function social_group_flexible_group_update_130013(): string {
+  $updater = \Drupal::service('update_helper.updater');
+  $updater->executeUpdate('social_group_flexible_group', __FUNCTION__);
+  return $updater->logger()->output();
+}
+
+/**
+ * Apply the new hubs view.
+ */
+function social_group_flexible_group_update_130014(): string {
+  $updater = \Drupal::service('update_helper.updater');
+  $updater->executeUpdate('social_group_flexible_group', __FUNCTION__);
+  return $updater->logger()->output();
+}
+
+/**
+ * Update the group visibility field description.
+ */
+function social_group_flexible_group_update_130015(): void {
+  $field_config = \Drupal::configFactory()
+    ->getEditable('field.field.group.flexible_group.field_flexible_group_visibility');
+
+  $field_config->set('label', 'Visibility');
+  $field_config->set('description', 'Who can find and view your group.');
+  $field_config->save();
+}

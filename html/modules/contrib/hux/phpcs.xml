@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="My Coding Standard">
+  <file>./src</file>
+  <file>./tests</file>
+  <rule ref="PreviousNextDrupal" />
+  <arg name="report" value="full"/>
+</ruleset>

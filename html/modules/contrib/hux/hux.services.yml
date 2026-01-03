@@ -1,0 +1,15 @@
+parameters:
+  # See README.md for guidance.
+  hux:
+    optimize: false
+
+services:
+  hux.module_handler:
+    decorates: module_handler
+    class: Drupal\hux\HuxModuleHandler
+    public: true
+    arguments:
+      - '@hux.module_handler.inner'
+      - "!abstract 'hooks services'"
+    tags:
+      - { name: service_id_collector, tag: hooks }

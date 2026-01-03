@@ -1,0 +1,69 @@
+parameters:
+  level: 6
+  customRulesetUsed: true
+  paths:
+    - .
+  ignoreErrors:
+    # We inherit a lot of Drupal core docs that don't specify iterable types on
+    # arrays, not sure we can fix this in a good way.
+    - identifier: missingType.iterableValue
+    # new static() is a best practice in Drupal, so we cannot fix that.
+    - "#^Unsafe usage of new static\\(\\)\\.$#"
+    # We forgot to use return type hints on some interfaces, cannot be changed
+    # in stable 4.0.
+    # @todo use return type hints everywhere for 5.0.
+    -
+      message: "#^Method Drupal\\\\graphql\\\\Plugin\\\\PersistedQueryPluginInterface\\:\\:setWeight\\(\\) has no return type specified\\.$#"
+      count: 1
+      path: src/Plugin/PersistedQueryPluginInterface.php
+
+    -
+      message: "#^Method Drupal\\\\graphql\\\\Plugin\\\\SchemaExtensionPluginInterface\\:\\:registerResolvers\\(\\) has no return type specified\\.$#"
+      count: 1
+      path: src/Plugin/SchemaExtensionPluginInterface.php
+
+    -
+      message: "#^Method Drupal\\\\graphql\\\\Entity\\\\ServerInterface\\:\\:addPersistedQueryInstance\\(\\) has no return type specified\\.$#"
+      count: 1
+      path: src/Entity/ServerInterface.php
+
+    -
+      message: "#^Method Drupal\\\\graphql\\\\Entity\\\\ServerInterface\\:\\:removeAllPersistedQueryInstances\\(\\) has no return type specified\\.$#"
+      count: 1
+      path: src/Entity/ServerInterface.php
+
+    -
+      message: "#^Method Drupal\\\\graphql\\\\Entity\\\\ServerInterface\\:\\:removePersistedQueryInstance\\(\\) has no return type specified\\.$#"
+      count: 1
+      path: src/Entity/ServerInterface.php
+
+    # @todo Some leftover \Drupal calls that can be fixed later.
+    -
+      message: "#^\\\\Drupal calls should be avoided in classes, use dependency injection instead$#"
+      count: 1
+      path: examples/graphql_example/src/Wrappers/QueryConnection.php
+
+    -
+      message: "#^\\\\Drupal calls should be avoided in classes, use dependency injection instead$#"
+      count: 3
+      path: src/Controller/ServerListBuilder.php
+
+    -
+      message: "#^\\\\Drupal calls should be avoided in classes, use dependency injection instead$#"
+      count: 1
+      path: src/GraphQL/Execution/Executor.php
+
+    -
+      message: "#^\\\\Drupal calls should be avoided in classes, use dependency injection instead$#"
+      count: 1
+      path: src/Plugin/GraphQL/DataProducer/Entity/Fields/Image/ImageDerivative.php
+
+    -
+      message: "#^\\\\Drupal calls should be avoided in classes, use dependency injection instead$#"
+      count: 1
+      path: src/Plugin/GraphQL/DataProducer/EntityDefinition/EntityDefinition.php
+
+    -
+      message: "#^\\\\Drupal calls should be avoided in classes, use dependency injection instead$#"
+      count: 1
+      path: src/Plugin/GraphQL/DataProducer/User/PasswordReset.php

@@ -1,0 +1,140 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_book module.
+ */
+
+use Drupal\user\RoleInterface;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_book.
+ */
+function social_book_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::ANONYMOUS_ID,
+    [
+      'view node.book.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'view node.book.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'view node.book.field_content_visibility:community content',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'create new books',
+      'add content to books',
+      'create book content',
+      'delete any book content',
+      'delete own book content',
+      'delete book revisions',
+      'revert book revisions',
+      'edit any book content',
+      'edit own book content',
+      'view book revisions',
+      'view node.book.field_content_visibility:community content',
+      'view node.book.field_content_visibility:group content',
+      'override book authored by option',
+      'override book authored on option',
+      'override book promote to front page option',
+      'override book published option',
+      'override book revision option',
+      'override book sticky option',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'create new books',
+      'add content to books',
+      'create book content',
+      'delete any book content',
+      'delete own book content',
+      'delete book revisions',
+      'revert book revisions',
+      'edit any book content',
+      'edit own book content',
+      'view book revisions',
+      'administer visibility settings',
+      'view node.book.field_content_visibility:community content',
+      'view node.book.field_content_visibility:group content',
+      'override book authored by option',
+      'override book authored on option',
+      'override book promote to front page option',
+      'override book published option',
+      'override book revision option',
+      'override book sticky option',
+    ]
+  );
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_book_update_dependencies(): array {
+  // Ensure configurations updates runs after the group migration has completed,
+  // but before the group types are removed.
+  $dependencies['social_book'][130000] = [
+    'social_group' => 13000,
+  ];
+  $dependencies['social_group'][13001] = [
+    'social_book' => 130000,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_book_update_last_removed() : int {
+  return 111101;
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_book_update_130000(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_book', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Enable author info on book pages.
+ */
+function social_book_update_130001(): void {
+  $config = \Drupal::configFactory()->getEditable('node.type.book');
+  if (!empty($config->getRawData())) {
+    \Drupal::configFactory()
+      ->getEditable('node.type.book')
+      ->set('display_submitted', TRUE)
+      ->save(TRUE);
+  }
+}

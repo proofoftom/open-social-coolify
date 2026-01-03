@@ -1,0 +1,62 @@
+<?php
+
+/**
+ * @file
+ * Install, update functions for the social_follow_tag module.
+ */
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_follow_tag.
+ */
+function social_follow_tag_install() {
+  // Set a higher weight to overlap templates.
+  module_set_weight('social_follow_tag', 10);
+  // Clear cache so that overlapped templates are used after module enabling.
+  drupal_flush_all_caches();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function social_follow_tag_uninstall(): void {
+  // Uninstall views filter configuration.
+  $config = \Drupal::configFactory()->getEditable('views.view.user_admin_people');
+  $config->clear('display.default.display_options.filters.social_follow_taxonomy_follow_filter');
+  $config->save();
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_follow_tag_update_dependencies(): array {
+  // Update 'social_follow_tag' after 'social_user'.
+  $dependencies['social_follow_tag'][12001] = [
+    'social_user' => 12002,
+  ];
+
+  return $dependencies;
+
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_follow_tag_update_last_removed() : int {
+  return 11801;
+}
+
+/**
+ * Move 'Content tags' filter in related container in admin/people.
+ */
+function social_follow_tag_update_12001(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_follow_tag', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}

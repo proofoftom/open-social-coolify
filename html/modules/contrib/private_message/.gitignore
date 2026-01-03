@@ -1,0 +1,10 @@
+.sass-cache/
+/.editorconfig
+/.gitattributes
+/.prettierignore
+/.prettierrc.json
+/phpcs.xml.dist
+/phpstan-baseline.neon
+/phpstan.neon
+/vendor/
+/web/

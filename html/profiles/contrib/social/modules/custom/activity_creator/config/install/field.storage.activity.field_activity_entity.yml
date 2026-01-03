@@ -1,0 +1,20 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - activity_creator
+    - dynamic_entity_reference
+id: activity.field_activity_entity
+field_name: field_activity_entity
+entity_type: activity
+type: dynamic_entity_reference
+settings:
+  exclude_entity_types: true
+  entity_type_ids: { }
+module: dynamic_entity_reference
+locked: false
+cardinality: 1
+translatable: true
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

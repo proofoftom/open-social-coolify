@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<ruleset name="advancedqueue">
+  <description>Default PHP CodeSniffer configuration for Advanced Queue.</description>
+  <file>.</file>
+  <arg name="extensions" value="php,module,inc,install,test,profile,theme"/>
+  <config name="drupal_core_version" value="8"/>
+
+  <exclude-pattern>*/.git/*</exclude-pattern>
+  <exclude-pattern>*/config/*</exclude-pattern>
+  <exclude-pattern>*/css/*</exclude-pattern>
+  <exclude-pattern>*/js/*</exclude-pattern>
+  <exclude-pattern>*/icons/*</exclude-pattern>
+  <exclude-pattern>README.md</exclude-pattern>
+
+  <rule ref="Drupal">
+    <!-- The following rule are intentionally disabled. -->
+    <exclude name="Drupal.Arrays.Array.LongLineDeclaration"/>
+  </rule>
+
+  <!-- SlevomatCodingStandard sniffs -->
+  <rule ref="SlevomatCodingStandard.Commenting.ForbiddenAnnotations">
+    <properties>
+      <property name="forbiddenAnnotations" type="array">
+        <element value="@inheritDoc"/>
+        <element value="@inheritdoc"/>
+        <element value="@returns"/>
+      </property>
+    </properties>
+  </rule>
+  <rule ref="SlevomatCodingStandard.Commenting.ForbiddenComments">
+    <properties>
+      <property name="forbiddenCommentPatterns" type="array">
+        <element value="/@inheritDoc/"/>
+      </property>
+    </properties>
+  </rule>
+  <rule ref="SlevomatCodingStandard.TypeHints.DeclareStrictTypes.DeclareStrictTypesMissing">
+    <severity>9</severity>
+    <include-pattern>*/tests/*</include-pattern>
+  </rule>
+  <rule ref="SlevomatCodingStandard.ControlStructures.RequireShortTernaryOperator"/>
+  <rule ref="SlevomatCodingStandard.Exceptions.RequireNonCapturingCatch" />
+
+</ruleset>

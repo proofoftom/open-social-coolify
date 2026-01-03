@@ -1,0 +1,12 @@
+name: DeepSeek Provider
+type: module
+description: "DeepSeek LLM Provider for AI module."
+package: AI Providers
+core_version_requirement: ^10 || ^11
+dependencies:
+  - ai:ai (>=1.0-beta)
+  - key:key
+# Information added by Drupal.org packaging script on 2025-09-19
+version: '1.0.0'
+project: 'ai_provider_deepseek'
+datestamp: 1758257115

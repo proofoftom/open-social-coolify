@@ -1,0 +1,4 @@
+allow_cancel_vote: true
+check_vote_init: true
+hide_vote_widget: false
+enabled_types: { }

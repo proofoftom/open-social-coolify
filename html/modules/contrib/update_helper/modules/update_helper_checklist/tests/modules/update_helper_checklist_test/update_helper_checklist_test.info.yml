@@ -1,0 +1,9 @@
+name: 'Update Helper Checklist Test'
+description: 'Helper module to test Update Helper Checklist.'
+type: module
+package: Testing
+
+# Information added by Drupal.org packaging script on 2025-11-25
+version: '4.1.1'
+project: 'update_helper'
+datestamp: 1764076334

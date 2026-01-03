@@ -1,0 +1,12 @@
+name: 'Group Support: Revisions'
+description: 'Enables revision access over grouped entities to be determined by the group'
+package: 'Group'
+type: 'module'
+core_version_requirement: ^10.3 || ^11
+dependencies:
+  - 'group:group'
+
+# Information added by Drupal.org packaging script on 2024-11-21
+version: '2.3.1'
+project: 'group'
+datestamp: 1732200050

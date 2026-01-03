@@ -1,0 +1,13 @@
+dependencies:
+  module:
+    - taxonomy_access_fix
+  config:
+    - user.role.verified
+items:
+  user.role.verified:
+    expected_config:
+      permissions: { }
+    update_actions:
+      add:
+        permissions:
+          - 'view terms in profile_organization_tag'

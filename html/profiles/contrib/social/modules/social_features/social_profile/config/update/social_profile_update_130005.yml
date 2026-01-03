@@ -1,0 +1,33 @@
+views.view.user_information:
+  expected_config:
+    display:
+      default:
+        display_options:
+          access:
+            options:
+              perm: 'view any profile profile'
+  update_actions:
+    change:
+      display:
+        default:
+          display_options:
+            access:
+              options:
+                perm: 'view own profile profile'
+
+views.view.newest_users:
+  expected_config:
+    display:
+      default:
+        display_options:
+          access:
+            options:
+              perm: 'view any profile profile'
+  update_actions:
+    change:
+      display:
+        default:
+          display_options:
+            access:
+              options:
+                perm: 'access user profiles'

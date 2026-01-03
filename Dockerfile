@@ -1,27 +1,7 @@
 # ============================================
-# Stage 1: Composer build
+# Production image
 # ============================================
-FROM composer:2 AS builder
-
-WORKDIR /app
-
-# Copy composer files first (better layer caching)
-COPY composer.json composer.lock ./
-
-# Copy custom code directories that need to be scaffolded
-# These are merged into the final html/ structure by composer
-COPY html/ ./html/
-
-# Install dependencies
-# --ignore-platform-reqs: skip ext-gd check (production image has it)
-# --prefer-dist: faster downloads
-# --no-dev: skip development dependencies
-# --optimize-autoloader: generate optimized autoload files
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --ignore-platform-reqs
-
-# ============================================
-# Stage 2: Production image
-# ============================================
+# Dependencies are committed to repo - no composer build stage needed
 FROM php:8.3-apache
 
 # Install system dependencies (including libraries for GD with WebP support and GMP for SIWE)
@@ -97,9 +77,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy built artifacts from builder stage
-COPY --from=builder /app/vendor ./vendor/
-COPY --from=builder /app/html ./html/
+# Copy pre-built dependencies (committed to repo)
+COPY vendor ./vendor/
+COPY html ./html/
 COPY composer.json composer.lock ./
 
 # Create files directories and ensure sites/default is writable

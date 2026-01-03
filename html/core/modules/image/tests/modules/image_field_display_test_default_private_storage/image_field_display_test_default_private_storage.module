@@ -1,0 +1,22 @@
+<?php
+
+/**
+ * @file
+ * Image field display test for default images in private file storage.
+ */
+
+use Drupal\Core\Field\FieldDefinitionInterface;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Field\FieldItemListInterface;
+use Drupal\Core\Access\AccessResult;
+
+/**
+ * Implements hook_entity_field_access().
+ */
+function image_field_display_test_default_private_storage_entity_field_access($operation, FieldDefinitionInterface $field_definition, AccountInterface $account, ?FieldItemListInterface $items = NULL) {
+  if ($field_definition->getName() == 'field_default_private' && $operation == 'view') {
+    return AccessResult::forbidden();
+  }
+
+  return AccessResult::neutral();
+}

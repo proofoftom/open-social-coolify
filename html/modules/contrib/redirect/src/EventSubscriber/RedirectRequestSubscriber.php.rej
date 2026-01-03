@@ -1,0 +1,11 @@
+--- src/EventSubscriber/RedirectRequestSubscriber.php
++++ src/EventSubscriber/RedirectRequestSubscriber.php
+@@ -147,7 +148,7 @@ class RedirectRequestSubscriber implements EventSubscriberInterface {
+     $this->context->fromRequest($request);
+ 
+     try {
+-      $redirect = $this->redirectRepository->findMatchingRedirect($path, $request_query, $this->languageManager->getCurrentLanguage()->getId());
++      $redirect = $this->redirectRepository->findMatchingRedirect($path, $request_query, $this->languageManager->getCurrentLanguage(LanguageInterface::TYPE_URL)->getId());
+     }
+     catch (RedirectLoopException $e) {
+       \Drupal::logger('redirect')->warning('Redirect loop identified at %path for redirect %rid', ['%path' => $e->getPath(), '%rid' => $e->getRedirectId()]);

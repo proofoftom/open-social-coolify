@@ -1,0 +1,171 @@
+<?php
+
+/**
+ * @file
+ * The Social activity install.
+ */
+
+use Drupal\language\ConfigurableLanguageManagerInterface;
+use Drupal\menu_link_content\Entity\MenuLinkContent;
+
+/**
+ * Social activity install function.
+ */
+function social_activity_install() {
+  // Add menu item.
+  $parents = \Drupal::entityTypeManager()->getStorage('menu_link_content')
+    ->loadByProperties(['menu_name' => 'main', 'title' => 'Explore', 'expanded' => TRUE]);
+  $parent = reset($parents);
+  if ($parent !== FALSE) {
+    MenuLinkContent::create([
+      'title' => t('Community'),
+      'link' => ['uri' => 'internal:/explore'],
+      'menu_name' => 'main',
+      'expanded' => FALSE,
+      'weight' => 10,
+      'parent' => 'menu_link_content:' . $parent->uuid(),
+    ])->save();
+  }
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_activity_update_dependencies() : array {
+  // Ensure configurations updates runs after the group migration has completed,
+  // but before the group types are removed.
+  $dependencies['social_activity'][13000] = [
+    'social_group' => 13000,
+  ];
+  $dependencies['social_group'][13001] = [
+    'social_activity' => 13000,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_activity_update_last_removed() : int {
+  return 11701;
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_activity_update_13000(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_activity', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Change token-replacement from create message template.
+ */
+function social_activity_update_13001(): void {
+  $message_templates = [
+    'message.template.create_topic_community',
+    'message.template.create_topic_gc',
+    'message.template.create_topic_group',
+    'message.template.create_event_group',
+    'message.template.create_event_gc',
+    'message.template.create_event_community',
+    'message.template.create_content_in_joined_group',
+  ];
+
+  $config_factory = \Drupal::configFactory();
+  foreach ($message_templates as $message_template) {
+    $config = $config_factory->getEditable($message_template);
+
+    $texts = array_map(function ($text) {
+      $text['value'] = str_replace('message:author', 'message:revision_author', $text['value']);
+
+      return $text;
+    }, $config->get('text'));
+
+    $config->set('text', $texts)
+      ->save();
+  }
+}
+
+/**
+ * Adds no translation property to user profile link HTML in message templates.
+ */
+function social_activity_update_13002(): void {
+  $message_templates = [
+    'message.template.create_topic_community',
+    'message.template.create_topic_gc',
+    'message.template.create_topic_group',
+    'message.template.create_event_group',
+    'message.template.create_event_gc',
+    'message.template.create_event_community',
+    'message.template.create_content_in_joined_group',
+  ];
+
+  $config_factory = \Drupal::configFactory();
+  foreach ($message_templates as $message_template) {
+    $config = $config_factory->getEditable($message_template);
+
+    $texts = array_map(function ($text) {
+      $text['value'] = str_replace('<a href="[message:revision_author:url:absolute]" translate="no">[message:revision_author:display-name]</a>', '<a href="[message:revision_author:url:absolute]" translate="no">[message:revision_author:display-name]</a>', $text['value']);
+
+      return $text;
+    }, $config->get('text'));
+
+    $config->set('text', $texts)
+      ->save();
+  }
+}
+
+/**
+ * Update token from message configuration translation .
+ */
+function social_activity_update_13003(): void {
+  $message_templates = [
+    'message.template.create_topic_community',
+    'message.template.create_topic_gc',
+    'message.template.create_topic_group',
+    'message.template.create_event_group',
+    'message.template.create_event_gc',
+    'message.template.create_event_community',
+    'message.template.create_content_in_joined_group',
+  ];
+
+  $language_manager = \Drupal::languageManager();
+  if (!$language_manager instanceof ConfigurableLanguageManagerInterface) {
+    return;
+  }
+
+  $enabled_languages = $language_manager->getLanguages();
+
+  foreach ($enabled_languages as $language) {
+    foreach ($message_templates as $message_template) {
+      $config_translation = $language_manager->getLanguageConfigOverride($language->getId(), $message_template);
+
+      $messages = $config_translation->get('text');
+
+      if ($messages) {
+        foreach ($messages as $key => $message) {
+          $messages[$key]['value'] = str_replace('message:author', 'message:revision_author', $message['value']);
+        }
+
+        $config_translation->set('text', $messages)
+          ->save();
+      }
+    }
+  }
+}

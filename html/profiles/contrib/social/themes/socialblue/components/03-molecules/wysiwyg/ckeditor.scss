@@ -1,0 +1,27 @@
+// Variables
+@import "settings";
+@import '../../02-atoms/button/button';
+
+
+body {
+  font-family: $font-family-webfont;
+  font-weight: 400;
+  color: $default-color;
+}
+
+a:not(.btn) {
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-color: var(--link-color);
+  color: #343434;
+
+  &:hover,
+  &:focus {
+    cursor: pointer;
+    color: var(--link-color);
+  }
+}
+
+:lang(ar) {
+  font-family: "Almarai", "montserrat", sans-serif;
+}

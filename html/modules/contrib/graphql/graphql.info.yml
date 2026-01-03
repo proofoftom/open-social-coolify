@@ -1,0 +1,13 @@
+name: GraphQL
+type: module
+description: 'Base module for integrating GraphQL with Drupal.'
+package: GraphQL
+configure: entity.graphql_server.collection
+core_version_requirement: ^10.2 || ^11
+dependencies:
+  - typed_data:typed_data
+
+# Information added by Drupal.org packaging script on 2024-09-11
+version: '8.x-4.9'
+project: 'graphql'
+datestamp: 1726057425

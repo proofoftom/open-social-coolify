@@ -1,0 +1,5 @@
+.form--inline .views-ef-fieldset-container .form-item {
+  display: inline-block;
+  float: none;
+  margin-right: 0.5em;
+}

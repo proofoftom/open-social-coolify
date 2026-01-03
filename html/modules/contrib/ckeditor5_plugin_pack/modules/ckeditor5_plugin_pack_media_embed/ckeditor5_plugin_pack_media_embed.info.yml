@@ -1,0 +1,12 @@
+name: CKEditor 5 Media Embed
+type: module
+description: "Provides the CKEditor 5 Media Embed plugin."
+package: CKEditor 5 Plugin Pack
+core_version_requirement: ^9.4 || ^10.0 || ^11
+dependencies:
+  - ckeditor5_plugin_pack:ckeditor5_plugin_pack
+
+# Information added by Drupal.org packaging script on 2025-11-26
+version: '1.4.2'
+project: 'ckeditor5_plugin_pack'
+datestamp: 1764157221

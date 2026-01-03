@@ -1,0 +1,24 @@
+services:
+  social_event_managers.overrider:
+    class: Drupal\social_event_managers\SocialEventManagersConfigOverride
+    tags:
+      - {name: config.factory.override, priority: 5}
+  social_event_managers.route_subscriber:
+    class: Drupal\social_event_managers\EventSubscriber\RouteSubscriber
+    arguments: ['@module_handler']
+    tags:
+      - { name: 'event_subscriber' }
+  social_event_managers.add_enrollee.permission:
+    class: 'Drupal\social_event_managers\Access\AddEnrolleeAccessCheck'
+    tags:
+      - { name: 'access_check', applies_to: '_enrollee_permission', priority: 249 }
+  Drupal\social_event_managers\EventSubscriber\NodeQueryAccessAlterSubscriber:
+    tags:
+      - { name: event_subscriber }
+  # Specific group relation handlers.
+  social_event_managers.relation_handler.access_control.group_node.decorator:
+    class: Drupal\social_event_managers\Plugin\Group\RelationHandler\EventsGroupContentAccessControl
+    decorates: 'group.relation_handler.access_control'
+    decoration_priority: 100
+    arguments: [ '@social_event_managers.relation_handler.access_control.group_node.decorator.inner' ]
+    shared: false

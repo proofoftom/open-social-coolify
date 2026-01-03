@@ -1,0 +1,5 @@
+services:
+  hux_replacement_test.hooks:
+    class: Drupal\hux_replacement_test\HuxReplacementTestHooks
+    tags:
+      - { name: hooks, priority: 100 }

@@ -1,0 +1,26 @@
+<?php
+
+/**
+ * @file
+ * The Social Sharing install.
+ */
+
+/**
+ * Install social_sharing.
+ */
+function social_sharing_install(bool $is_syncing) {
+  if (!$is_syncing) {
+    // Get the current array of enabled services.
+    $services = \Drupal::configFactory()->getEditable('shariff.settings')->get('shariff_services');
+    // Add 'add this'.
+    $services['addthis'] = 'addthis';
+    \Drupal::configFactory()->getEditable('shariff.settings')->set('shariff_services', $services)->save();
+  }
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_sharing_update_last_removed() : int {
+  return 8001;
+}

@@ -1,0 +1,7 @@
+@mixin link-default() {
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-color: var(--link-color);
+  @content
+}
+

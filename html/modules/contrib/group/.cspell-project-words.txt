@@ -1,0 +1,15 @@
+# Group-specific terminology.
+gnode
+grfd
+gcfd
+gids
+
+# General list of terms.
+subconditions
+decoratable
+
+# Test cases.
+pagefoobarbaz
+contentfoobar
+contentfoobarbazfoo
+bazfoo

@@ -1,0 +1,17 @@
+includes:
+  - phpstan-baseline.neon
+parameters:
+    level: 0
+    fileExtensions:
+        - php
+        - module
+        - inc
+        - install
+        - theme
+        - profile
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # new static() is a best practice in Drupal, so we cannot fix that.
+        - "#^Unsafe usage of new static#"
+        - '#Class Drupal\\ajax_comments\\Form\\AjaxCommentsDeleteForm extends @internal class Drupal\\comment\\Form\\DeleteForm.#'
+        - '#Class Drupal\\ajax_comments\\Form\\AjaxCommentsForm extends @internal class Drupal\\comment\\CommentForm.#'

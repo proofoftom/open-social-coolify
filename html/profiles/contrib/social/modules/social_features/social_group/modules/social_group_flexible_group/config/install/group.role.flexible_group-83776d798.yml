@@ -1,0 +1,17 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - group.type.flexible_group
+    - user.role.contentmanager
+  enforced:
+    config:
+      - user.role.contentmanager
+id: flexible_group-83776d798
+label: 'Content manager'
+weight: 3
+group_type: flexible_group
+admin: true
+scope: outsider
+global_role: contentmanager
+permissions: { }

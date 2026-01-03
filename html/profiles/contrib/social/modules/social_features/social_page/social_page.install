@@ -1,0 +1,135 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_page module.
+ */
+
+use Drupal\user\RoleInterface;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_page.
+ */
+function social_page_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::ANONYMOUS_ID,
+    [
+      'view node.page.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'view node.page.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'view node.page.field_content_visibility:community content',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'view node.page.field_content_visibility:community content',
+      'create page content',
+      'delete any page content',
+      'delete own page content',
+      'edit any page content',
+      'edit own page content',
+      'view page revisions',
+      'delete page revisions',
+      'revert page revisions',
+      'override page authored by option',
+      'override page published option',
+      'override page authored on option',
+      'override page promote to front page option',
+      'override page revision option',
+      'override page sticky option',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'view node.page.field_content_visibility:community content',
+      'create page content',
+      'delete any page content',
+      'delete own page content',
+      'edit any page content',
+      'edit own page content',
+      'view page revisions',
+      'delete page revisions',
+      'revert page revisions',
+      'override page authored by option',
+      'override page published option',
+      'override page authored on option',
+      'override page promote to front page option',
+      'override page revision option',
+      'override page sticky option',
+      'administer visibility settings',
+    ]
+  );
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_page_update_dependencies(): array {
+  // Ensure configurations updates runs after the group migration has completed,
+  // but before the group types are removed.
+  $dependencies['social_page'][130000] = [
+    'social_group' => 13000,
+  ];
+  $dependencies['social_group'][13001] = [
+    'social_page' => 130000,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_page_update_last_removed() : int {
+  return 111102;
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_page_update_130000(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_page', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Rename "Basic Page" content type label into "Page".
+ */
+function social_page_update_130001(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_page', 'social_page_update_130001');
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}

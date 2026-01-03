@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @file
+ * Hooks for Hux Alter Test.
+ */
+
+use Drupal\hux_test\HuxTestCallTracker;
+
+/**
+ * Implements hook_fizz_alter().
+ */
+function hux_alter_test_fizz_alter(&$data, &$context1, &$context2): void {
+  HuxTestCallTracker::record(__FUNCTION__);
+  $data = __FUNCTION__ . ' hit';
+}
+
+/**
+ * Implements hook_buzz_alter().
+ */
+function hux_alter_test_buzz_alter(&$data, &$context1, &$context2): void {
+  HuxTestCallTracker::record(__FUNCTION__);
+  $data = __FUNCTION__ . ' hit';
+}

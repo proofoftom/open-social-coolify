@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * @file
+ * Provides functionality for handling responsive_table_filter module.
+ */
+
+/**
+ * Implements hook_page_attachments().
+ */
+function responsive_table_filter_page_attachments(array &$attachments) {
+  $attachments['#attached']['library'][] = 'responsive_table_filter/responsive-table';
+}

@@ -1,0 +1,57 @@
+views.display_extender.views_ef_fieldset:
+  type: views_display_extender
+  label: 'Views Exposed Form Fieldset'
+  nullable: true
+  mapping:
+    views_ef_fieldset:
+      type: mapping
+      label: 'Views Exposed Form Fieldset'
+      nullable: true
+      mapping:
+        enabled:
+          type: boolean
+          label: 'Is enabled?'
+        options:
+          type: mapping
+          label: 'Options'
+          nullable: true
+          mapping:
+            sort:
+              type: sequence
+              label: 'Sort options'
+              sequence:
+                type: views_ef_fieldset.options.sort.item
+
+views_ef_fieldset.options.sort.item:
+  type: mapping
+  label: 'Container sorting options'
+  mapping:
+    container_type:
+      type: string
+      label: 'Container type'
+    depth:
+      type: string
+      label: Depth
+    description:
+      type: label
+      label: Description
+    id:
+      type: string
+      label: ID
+    open:
+      type: boolean
+      label: 'Is open?'
+      nullable: true
+    pid:
+      type: string
+      label: Parent ID
+      nullable: true
+    title:
+      type: label
+      label: Title
+    type:
+      type: string
+      label: Type
+    weight:
+      type: string
+      label: Weight

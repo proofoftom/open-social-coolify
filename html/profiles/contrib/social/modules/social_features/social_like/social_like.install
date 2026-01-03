@@ -1,0 +1,153 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_like module.
+ */
+
+use Drupal\user\RoleInterface;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_like.
+ */
+function social_like_install() {
+  _social_like_set_defaults();
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::ANONYMOUS_ID,
+    [
+      'view like widget',
+    ]
+  );
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'view like widget',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'add or remove like votes on post of post',
+      'add or remove like votes on photo of post',
+      'add or remove like votes on comment of comment',
+      'add or remove like votes on post_comment of comment',
+      'add or remove like votes on topic of node',
+      'add or remove like votes on event of node',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'add or remove like votes on post of post',
+      'add or remove like votes on photo of post',
+      'add or remove like votes on comment of comment',
+      'add or remove like votes on post_comment of comment',
+      'add or remove like votes on topic of node',
+      'add or remove like votes on event of node',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'add or remove like votes on post of post',
+      'add or remove like votes on photo of post',
+      'add or remove like votes on comment of comment',
+      'add or remove like votes on post_comment of comment',
+      'add or remove like votes on topic of node',
+      'add or remove like votes on event of node',
+    ]
+  );
+}
+
+/**
+ * Set default config.
+ */
+function _social_like_set_defaults() {
+  // Add like and dislike settings.
+  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $config */
+  $container = \Drupal::getContainer()->get('config.factory');
+  $config = $container->getEditable('like_and_dislike.settings');
+  $config->set('hide_vote_widget', FALSE)->save();
+  $config->set(
+    'enabled_types',
+    [
+      'comment' => [
+        'comment',
+        'post_comment',
+      ],
+      'node' => [
+        'topic',
+        'event',
+      ],
+      'post' => [
+        'post',
+      ],
+    ]
+  )->save();
+  // Add voting api settings.
+  $config = $container->getEditable('like_and_dislike.settings');
+  $config->set('delete_everywhere', FALSE)->save();
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_like_update_last_removed() : int {
+  return 11402;
+}
+
+/**
+ * Change 'check_vote_init' variable as true.
+ */
+function social_like_update_13001(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_like', 'social_like_update_13001');
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Change control access from who liked view page.
+ */
+function social_like_update_13002(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_like', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Grant permissions to roles for adding or removing like votes.
+ *
+ * @see \Drupal\social_like\Plugin\views\access\WhoLikedAccess
+ */
+function social_like_update_13003(): void {
+  $permissions = [
+    'add or remove like votes on post',
+    'add or remove like votes on photo of post',
+  ];
+
+  user_role_grant_permissions(
+    'verified',
+    $permissions,
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    $permissions,
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    $permissions
+  );
+}

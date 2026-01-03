@@ -1,0 +1,5 @@
+services:
+  hux_alter_test.hooks:
+    class: Drupal\hux_alter_test\HuxAlterTestHooks
+    tags:
+      - { name: hooks, priority: 100 }

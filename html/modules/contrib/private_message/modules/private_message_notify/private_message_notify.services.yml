@@ -1,0 +1,12 @@
+services:
+  private_message_notify.notifier:
+    class: Drupal\private_message_notify\Service\PrivateMessageNotifier
+    arguments:
+      - '@private_message.service'
+      - '@current_user'
+      - '@user.data'
+      - '@config.factory'
+      - '@entity_type.manager'
+      - '@message_notify.sender'
+      - '@module_handler'
+      - '@logger.factory'

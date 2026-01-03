@@ -1,0 +1,77 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_event_managers module.
+ */
+
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_event_managers.
+ */
+function social_event_managers_install() {
+  // Fetch site manager role.
+  $role = Role::load('sitemanager');
+  // Set permission for site manager.
+  if ($role instanceof Role) {
+    // Set permission.
+    $role->grantPermission('set social event managers settings');
+    $role->trustData()->save();
+  }
+
+  // Add enrollments permissions to CM and SM.
+  $roles = [
+    'sitemanager',
+    'contentmanager',
+  ];
+
+  foreach ($roles as $rolename) {
+    $role = Role::load($rolename);
+    // Set permission for site manager.
+    if ($role instanceof Role) {
+      // Set permission.
+      $role->grantPermission('manage everything enrollments');
+      $role->trustData()->save();
+    }
+  }
+
+  // We need to reindex all search api indexes with nodes as a data source
+  // to make sure the new search processor "social_event_managers_query_alter"
+  // is applied.
+  if (function_exists('social_search_resave_data_source_search_indexes')) {
+    social_search_resave_data_source_search_indexes(['node']);
+  }
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_event_managers_update_last_removed() : int {
+  return 11401;
+}
+
+/**
+ * Enable pager limit filter on the event's page "Manage enrollments".
+ */
+function social_event_managers_update_12201(array &$sandbox): string {
+  /** @var \Drupal\update_helper\UpdaterInterface $update_helper */
+  $update_helper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $update_helper->executeUpdate('social_event_managers', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $update_helper->logger()->output();
+}
+
+/**
+ * Install the "Social Email Broadcast" module.
+ */
+function social_event_managers_update_13000() : void {
+  if (!\Drupal::moduleHandler()->moduleExists('social_email_broadcast')) {
+    \Drupal::service('module_installer')->install(['social_email_broadcast']);
+  }
+}

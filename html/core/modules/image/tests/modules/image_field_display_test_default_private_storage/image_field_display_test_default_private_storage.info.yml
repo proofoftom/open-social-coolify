@@ -1,0 +1,5 @@
+name: 'Image field display test for default images in private file storage'
+type: module
+description: 'Provides an entity field access hook to deny view access to a field for the current user.'
+package: Testing
+version: VERSION

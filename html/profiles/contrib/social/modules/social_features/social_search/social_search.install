@@ -1,0 +1,177 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_search module.
+ */
+
+use Drupal\search_api\Entity\Index;
+use Drupal\search_api\Entity\Server;
+use Drupal\user\RoleInterface;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_search.
+ */
+function social_search_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::ANONYMOUS_ID,
+    [
+      'access content search',
+      'access group search',
+    ]
+  );
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'access content search',
+      'access group search',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'access users search',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'access users search',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'access users search',
+    ]
+  );
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_search_update_dependencies(): array {
+  // Ensure configurations updates runs after the group migration has completed,
+  // but before the group types are removed.
+  $dependencies['social_search'][13002] = [
+    'social_group' => 13000,
+  ];
+  $dependencies['social_group'][13001] = [
+    'social_search' => 13002,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_search_update_last_removed() : int {
+  return 11404;
+}
+
+/**
+ * Migrate to SOLR for our search back-end.
+ */
+function social_search_update_13000() : void {
+  \Drupal::service('module_installer')->install(["search_api_solr"]);
+
+  // Create the server if it doesn't exist.
+  if (Server::load('social_solr') === NULL) {
+    $new_server = Server::create([
+      'langcode' => 'en',
+      'status' => TRUE,
+      'dependencies' => [
+        'module' => [
+          'search_api_solr',
+        ],
+      ],
+      'id' => 'social_solr',
+      'name' => 'Social SOLR',
+      'description' => '',
+      'backend' => 'search_api_solr',
+      'backend_config' => [
+        'connector' => 'standard',
+        'connector_config' => [
+          'scheme' => 'http',
+          'host' => 'solr',
+          'port' => 8983,
+          'path' => '/',
+          'core' => 'drupal',
+          'timeout' => 5,
+          'index_timeout' => 5,
+          'optimize_timeout' => 10,
+          'finalize_timeout' => 30,
+          'commit_within' => 1000,
+          'solr_version' => '',
+          'http_method' => 'AUTO',
+          'jmx' => FALSE,
+          'solr_install_dir' => '/opt/solr',
+        ],
+        'disabled_field_types' => [],
+        'retrieve_data' => FALSE,
+        'highlight_data' => FALSE,
+        'skip_schema_check' => FALSE,
+        'server_prefix' => '',
+        'domain' => 'generic',
+        'optimize' => FALSE,
+        'site_hash' => FALSE,
+      ],
+    ]);
+    $new_server->save();
+
+    // We want to migrate all indices that exist to the new search server.
+    // These are all, content, groups, and users for the distribution but might
+    // be others for SaaS extensions or custom work.
+    foreach (Index::loadMultiple() as $index) {
+      $index->setServer($new_server)->save();
+    }
+  }
+}
+
+/**
+ * Clean up database search back-end.
+ */
+function social_search_update_13001() : void {
+  // This is done as a separate hook so that contrib has the possibility of
+  // placing any custom work in between the migration and the clean-up. e.g. to
+  // do any custom work we're not aware of.
+  Server::load("social_database")?->delete();
+
+  \Drupal::service('module_installer')->uninstall(["search_api_db"], FALSE);
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_search_update_13002(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_search', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Enable a new search api processor "social_search_tagging_query" to indexes.
+ */
+function social_search_update_13003(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+  $updateHelper->executeUpdate('social_search', __FUNCTION__);
+  return $updateHelper->logger()->output();
+}

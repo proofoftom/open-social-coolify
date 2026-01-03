@@ -1,0 +1,934 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_core module.
+ */
+
+use Drupal\Core\Config\FileStorage;
+use Drupal\Core\Field\FieldItemList;
+use Drupal\Core\File\FileExists;
+use Drupal\crop\Entity\CropType;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\file\Entity\File;
+use Drupal\menu_link_content\Entity\MenuLinkContent;
+use Drupal\user\RoleInterface;
+use Drupal\views\Entity\View;
+
+/**
+ * Implements hook_requirements().
+ */
+function social_core_requirements($phase) {
+  $requirements = [];
+
+  switch ($phase) {
+    case 'update':
+      // From 9.0 on-wards a site must update to 8.1 first to ensure that the
+      // features removal update hooks have run that are no longer present in
+      // Open Social 9.0.
+      if (\Drupal::service('update.update_hook_registry')->getInstalledVersion('social_core') <= 8805) {
+        $requirements['social_core_update_version'] = [
+          'title' => t('Open Social Update Version'),
+          'description' => t('You must update Open Social to the latest version of 8.x before upgrading to 9.0 or later.'),
+          'severity' => REQUIREMENT_ERROR,
+        ];
+      }
+      break;
+
+  }
+
+  return $requirements;
+}
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_core.
+ */
+function social_core_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::ANONYMOUS_ID,
+    [
+      'access content',
+    ]
+  );
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'access content',
+      'view own unpublished content',
+      'use text format basic_html',
+      'use text format simple_text',
+      'view the administration theme',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'use select2 autocomplete',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'access content overview',
+      'access toolbar',
+      'administer nodes',
+      'view all revisions',
+      'revert all revisions',
+      'delete all revisions',
+      'create url aliases',
+      'use text format full_html',
+      'access social_core dashboard',
+      'use select2 autocomplete',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'access content overview',
+      'access toolbar',
+      'administer nodes',
+      'access administration pages',
+      'view all revisions',
+      'revert all revisions',
+      'delete all revisions',
+      'create url aliases',
+      'use text format full_html',
+      'access taxonomy overview',
+      'create terms in expertise',
+      'delete terms in expertise',
+      'edit terms in expertise',
+      'create terms in interests',
+      'delete terms in interests',
+      'edit terms in interests',
+      'create terms in topic_types',
+      'delete terms in topic_types',
+      'edit terms in topic_types',
+      'administer users',
+      'administer account settings',
+      'administer social site configuration',
+      'administer social menu links',
+      'access social_core dashboard',
+      'access social theme settings',
+      'use select2 autocomplete',
+    ]
+  );
+  // Create AN Homepage block.
+  _social_core_create_an_homepage_block();
+  // Add menu items.
+  _social_core_create_menu_links();
+
+  // Set image quality defaults.
+  $config = \Drupal::service('config.factory')->getEditable('system.image.gd');
+  $config->set('jpeg_quality', 90)->save();
+
+  // If social blue is enabled, and default image is still Open Social.
+  // Lets add the default e-mail logo for open social as well.
+  _social_core_set_default_email_logo_for_socialblue();
+  // Add favicon to GIN.
+  _social_core_set_favicon();
+}
+
+/**
+ * Custom function to create the homepage block for AN users.
+ */
+function _social_core_create_an_homepage_block() {
+  // @todo use a better image from the theme.
+  // Block image.
+  $path = \Drupal::service('extension.list.module')->getPath('social_core');
+  $image_path = $path . DIRECTORY_SEPARATOR . 'images' . DIRECTORY_SEPARATOR . 'homepage-block.jpg';
+  $uri = \Drupal::service('file_system')->copy($image_path, 'public://homepage-block.jpg', FileExists::Replace);
+
+  $media = File::create([
+    'langcode' => 'en',
+    'uid' => 1,
+    'status' => 1,
+    'uri' => $uri,
+  ]);
+  $media->save();
+
+  $fid = $media->id();
+
+  // Apply image cropping.
+  $data = [
+    'x' => 0,
+    'y' => 0,
+    'width' => 1200,
+    'height' => 490,
+  ];
+  $crop_type = \Drupal::entityTypeManager()
+    ->getStorage('crop_type')
+    ->load('hero_an');
+  if (!empty($crop_type) && $crop_type instanceof CropType) {
+    $image_widget_crop_manager = \Drupal::service('image_widget_crop.manager');
+    $image_widget_crop_manager->applyCrop($data, [
+      'file-uri' => $uri,
+      'file-id' => $fid,
+    ], $crop_type);
+  }
+
+  // Create a block with a specific uuid so we can use it in the config
+  // to load it into the theme see block.block.anhomepageheroblock.yml.
+  $block = \Drupal::entityTypeManager()->getStorage('block_content')->create([
+    'type' => 'hero_call_to_action_block',
+    'info' => 'AN homepage hero block',
+    'uuid' => '8bb9d4bb-f182-4afc-b138-8a4b802824e4',
+  ]);
+  $block->field_text_block = [
+    'value' => '<h3>Become a member or log in to your community</h3><p>This community is powered by Open Social, the plug-and-play community solution for NGOs and semi-governmental organizations.</p>',
+    'format' => 'full_html',
+  ];
+
+  $block_image = [
+    'target_id' => $fid,
+    'alt' => "Anonymous front page image homepage'",
+  ];
+  $block->field_hero_image = $block_image;
+
+  // Set the links.
+  $action_links = [
+    [
+      'uri' => 'internal:/user/register',
+      'title' => t('Sign up'),
+    ],
+    [
+      'uri' => 'internal:/user/login',
+      'title' => t('Login'),
+    ],
+  ];
+  $itemList = new FieldItemList($block->field_call_to_action_link->getFieldDefinition());
+  $itemList->setValue($action_links);
+  $block->field_call_to_action_link = $itemList;
+  $block->save();
+}
+
+/**
+ * Function to create some menu items.
+ */
+function _social_core_create_menu_links() {
+  // Home.
+  MenuLinkContent::create([
+    'title' => t('Home'),
+    'link' => ['uri' => 'internal:/'],
+    'menu_name' => 'main',
+    'expanded' => FALSE,
+    'weight' => 10,
+  ])->save();
+
+  // Explore.
+  MenuLinkContent::create([
+    'title' => t('Explore'),
+    // This way we get an empty link.
+    'link' => ['uri' => 'internal:'],
+    'menu_name' => 'main',
+    'expanded' => TRUE,
+    'weight' => 20,
+  ])->save();
+
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_core_update_dependencies(): array {
+  // Update 123003 fixes a view corruption from 8105,
+  // so that one needs to be executed first.
+  $dependencies['social_core'][123003] = [
+    'message' => 8105,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_core_update_last_removed() : int {
+  return 111206;
+}
+
+/**
+ * Install social emoji module.
+ */
+function social_core_update_121001(): void {
+  $modules = [
+    'social_emoji',
+  ];
+  \Drupal::service('module_installer')->install($modules);
+}
+
+/**
+ * Add permission for SM to edit block content.
+ */
+function social_core_update_121002(): void {
+  // This was added in a Drupal Core release as new permission.
+  // Considering we already assign administer blocks, this seems like a good
+  // first iteration.
+  user_role_grant_permissions('sitemanager', ['administer block content']);
+}
+
+/**
+ * Create views.view.posts (module social_post).
+ */
+function social_core_update_122001(): void {
+  // Only create if the posts view doesn't exist and views is enabled.
+  if (\Drupal::moduleHandler()->moduleExists('views') && !View::load('posts')) {
+    $config_path = Drupal::service('extension.list.module')->getPath('social_post') . '/config/install';
+    $source = new FileStorage($config_path);
+    $data = $source->read('views.view.posts');
+
+    if (is_array($data)) {
+      \Drupal::entityTypeManager()->getStorage('view')->create($data)->save();
+    }
+  }
+}
+
+/**
+ * Uninstall admin_toolbar_tools if nothing uses it.
+ */
+function social_core_update_123001() : void {
+  // Nothing to do if the module is not installed.
+  if (!\Drupal::moduleHandler()->moduleExists('admin_toolbar_tools')) {
+    return;
+  }
+
+  // If there are modules depending on admin_toolbar_tools, and it is enabled
+  // we can't uninstall it.
+  $module_dependencies = \Drupal::service('extension.list.module')->get('admin_toolbar_tools')->required_by ?? [];
+  $has_dependency_enabled = FALSE;
+  foreach ($module_dependencies as $module_name => $module_dependency) {
+    if (\Drupal::moduleHandler()->moduleExists($module_name)) {
+      $has_dependency_enabled = TRUE;
+      break;
+    }
+  }
+  if ($has_dependency_enabled) {
+    return;
+  }
+
+  // Uninstall the module (nothing should depend on it but let the module
+  // uninstaller double-check just in case).
+  \Drupal::service('module_installer')->uninstall(['admin_toolbar_tools'], FALSE);
+}
+
+/**
+ * Add permission for SM to administer site configuration.
+ */
+function social_core_update_123002(): void {
+  user_role_grant_permissions('sitemanager', ['administer site configuration']);
+}
+
+/**
+ * Set cache maximum age with 1 hour.
+ */
+function social_core_update_123003(): void {
+  // Get cache configuration.
+  $config = \Drupal::service('config.factory')->getEditable('system.performance');
+
+  // When the max-age is empty, set 1 hour.
+  if (empty($config->get('cache.page.max_age'))) {
+    $config->set('cache.page.max_age', 3600)
+      ->save();
+  }
+}
+
+/**
+ * Recreate views.view.message (module message) if it is corrupted.
+ */
+function social_core_update_123004(): void {
+  if (\Drupal::moduleHandler()->moduleExists('views') && \Drupal::moduleHandler()->moduleExists('message')) {
+    // Check if the message view exists.
+    $views = View::load('views.view.message');
+
+    // If the view does not exist, it can still be in the config table.
+    if ($views === NULL) {
+      $config = \Drupal::service('config.factory')
+        ->getEditable('views.view.message');
+
+      // If the config view does exist it means it's not a valid view
+      // and corrupted by the message update hook 8105.
+      if (!empty($config->getRawdata())) {
+        // Replace the view config with the new one.
+        $config_path = \Drupal::service('extension.list.module')->getPath('social_core') . '/config/static';
+        $source = new FileStorage($config_path);
+        /** @var \Drupal\Core\Config\StorageInterface $config_storage */
+        $config_storage = \Drupal::service('config.storage');
+
+        $data = $source->read('views.view.message_123003');
+        if (is_array($data)) {
+          $config_storage->write('views.view.message', $data);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Uninstall Lazy module.
+ */
+function social_core_update_124001(): void {
+  // Nothing to do if the module is not installed.
+  if (!\Drupal::moduleHandler()->moduleExists('lazy')) {
+    return;
+  }
+
+  // If there are modules depending on admin_toolbar_tools, and it is enabled
+  // we can't uninstall it.
+  $module_dependencies = \Drupal::service('extension.list.module')
+    ->get('lazy')->required_by ?? [];
+  $has_dependency_enabled = FALSE;
+  foreach ($module_dependencies as $module_name => $module_dependency) {
+    if (\Drupal::moduleHandler()->moduleExists($module_name)) {
+      $has_dependency_enabled = TRUE;
+      break;
+    }
+  }
+  if ($has_dependency_enabled) {
+    return;
+  }
+
+  // Uninstall the module (nothing should depend on it but let the module
+  // uninstaller double-check just in case).
+  \Drupal::service('module_installer')->uninstall(['lazy'], FALSE);
+
+  // Remove configuration.
+  $config = \Drupal::service('config.factory')->getEditable('lazy.settings');
+  $config->delete()->save();
+}
+
+/**
+ * Install the secret file system.
+ */
+function social_core_update_130001() : void {
+  \Drupal::service('module_installer')->install(['secret_file_system']);
+}
+
+/**
+ * Migrate private file system to secret file system.
+ */
+function social_core_update_130002() : void {
+  // Allow platforms to opt out of the migration to using the secret file
+  // system.
+  if (\Drupal::state()->get("secret_file_system_opt_out", FALSE)) {
+    \Drupal::logger("social_core")->info("Platform has opted out of secret file system migration.");
+    return;
+  }
+
+  $image_fields = \Drupal::entityTypeManager()
+    ->getStorage('field_storage_config')
+    ->loadByProperties(['type' => 'image']);
+
+  foreach ($image_fields as $field_storage) {
+    if ($field_storage->getSetting('uri_scheme') === 'private') {
+      $field_storage->setSetting('uri_scheme', 'secret');
+      $field_storage->save();
+    }
+  }
+
+  $file_fields = \Drupal::entityTypeManager()
+    ->getStorage('field_storage_config')
+    ->loadByProperties(['type' => 'file']);
+
+  foreach ($file_fields as $field_storage) {
+    if ($field_storage->getSetting('uri_scheme') === 'private') {
+      $field_storage->setSetting('uri_scheme', 'secret');
+      $field_storage->save();
+    }
+  }
+
+  // Update all managed files.
+  \Drupal::database()->query("UPDATE {file_managed} SET uri = REPLACE(uri, 'private://', 'secret://')");
+}
+
+/**
+ * Clean up any secret file system opt-out that might be enabled.
+ */
+function social_core_update_130003() : void {
+  \Drupal::state()->delete("secret_file_system_opt_out");
+}
+
+/**
+ * Replace permission administer taxonomy with access taxonomy overview for SM.
+ */
+function social_core_update_130004(): void {
+  user_role_revoke_permissions('sitemanager', ['administer taxonomy']);
+  $permissions = [
+    'access taxonomy overview',
+    'create terms in expertise',
+    'create terms in interests',
+    'create terms in topic_types',
+  ];
+  user_role_grant_permissions('sitemanager', $permissions);
+}
+
+/**
+ * Add administer taxonomy back again, this had side effects we need to fix.
+ */
+function social_core_update_130005(): void {
+  user_role_grant_permissions('sitemanager', ['administer taxonomy']);
+}
+
+/**
+ * Revert inline-images to private file system.
+ */
+function social_core_update_130006(): void {
+  // This does not check if the secret file system was opted in, since in that
+  // case it matches no rows.
+  // The inline-images was omitted from the update hook but the query was not
+  // updated to ignore those files, this causes them to error.
+  \Drupal::database()->query("UPDATE {file_managed} SET uri = REPLACE(uri, 'secret://', 'private://') WHERE uri LIKE 'secret://inline-images/%'");
+}
+
+/**
+ * Revert field_files to use private:// instead of secret://.
+ */
+function social_core_update_130007(): void {
+  // Change storage uri-scheme to private for file-field.
+  $file_fields = \Drupal::entityTypeManager()
+    ->getStorage('field_storage_config')
+    ->loadByProperties([
+      'type' => 'file',
+    ]);
+
+  foreach ($file_fields as $field_storage) {
+    if (
+      $field_storage->get('field_name') === 'field_files'
+      && $field_storage->getSetting('uri_scheme') === 'secret'
+    ) {
+      $field_storage->setSetting('uri_scheme', 'private');
+      $field_storage->save();
+    }
+  }
+
+  // Change file_managed table only files from field_file field.
+  \Drupal::database()->query("UPDATE {file_managed} SET {file_managed}.uri = REPLACE({file_managed}.uri, 'secret://', 'private://') WHERE fid IN (SELECT {node__field_files}.field_files_target_id FROM {node__field_files})");
+}
+
+/**
+ * Revoke administer taxonomy permission for sitemanager.
+ */
+function social_core_update_130008(): void {
+  user_role_revoke_permissions('sitemanager', ['administer taxonomy']);
+}
+
+/**
+ * Bootstrap 8.x-3.32 #3427365.
+ *
+ * Due to themes not having update hooks this needs to be added for Open Social.
+ * Otherwise, it will result in dependencies not met.
+ */
+function social_core_update_130009(): void {
+  $modules = [
+    'jquery_ui',
+    'jquery_ui_draggable',
+    'jquery_ui_resizable',
+  ];
+  \Drupal::service('module_installer')->install($modules);
+}
+
+/**
+ * Install drupal/hux module.
+ */
+function social_core_update_130010(): void {
+  $modules = [
+    'hux',
+  ];
+  \Drupal::service('module_installer')->install($modules);
+}
+
+/**
+ * Update editor.
+ */
+function social_core_update_130011() : void {
+  $editor_ids = [
+    'editor.editor.basic_html',
+    'editor.editor.full_html',
+  ];
+
+  foreach ($editor_ids as $editor_id) {
+    $editor_config = \Drupal::configFactory()->getEditable($editor_id);
+    // Skip editor configs that don't yet exist.
+    if ($editor_config->isNew()) {
+      continue;
+    }
+    // Only update config that isn't already private.
+    if ($editor_config->get('image_upload.scheme') === "public") {
+      $editor_config->set('image_upload.scheme', 'private')->save();
+    }
+  }
+}
+
+/**
+ * Fix move config overrides into active configuration.
+ */
+function social_core_update_130012() : void {
+  /** @var \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory */
+  $logger_factory = \Drupal::service('logger.factory');
+  $logger = $logger_factory->get('os_private_update_logger');
+
+  $field_storages = [
+    ['entity_type' => 'block_content', 'field_name' => 'field_hero_image'],
+    ['entity_type' => 'comment', 'field_name' => 'field_comment_files'],
+    ['entity_type' => 'group', 'field_name' => 'field_group_image'],
+    ['entity_type' => 'node', 'field_name' => 'field_book_image'],
+    ['entity_type' => 'node', 'field_name' => 'field_event_image'],
+    ['entity_type' => 'node', 'field_name' => 'field_files'],
+    ['entity_type' => 'node', 'field_name' => 'field_page_image'],
+    ['entity_type' => 'node', 'field_name' => 'field_topic_image'],
+    ['entity_type' => 'post', 'field_name' => 'field_post_image'],
+    ['entity_type' => 'profile', 'field_name' => 'field_profile_image'],
+    ['entity_type' => 'profile', 'field_name' => 'field_profile_banner_image'],
+    ['entity_type' => 'paragraph', 'field_name' => 'field_hero_image'],
+    ['entity_type' => 'paragraph', 'field_name' => 'field_hero_small_image'],
+  ];
+
+  foreach ($field_storages as $field_storage) {
+    $storage = FieldStorageConfig::loadByName($field_storage['entity_type'], $field_storage['field_name']);
+    // No need to update fields that aren't installed.
+    if ($storage === NULL) {
+      $logger->info('Field storage not found: ' . $field_storage['entity_type'] . '.' . $field_storage['field_name']);
+      continue;
+    }
+    // Only update fields that aren't already private.
+    if ($storage->getSetting("uri_scheme") === "public") {
+      $logger->info('Updating field storage: ' . $field_storage['entity_type'] . '.' . $field_storage['field_name']);
+      $storage->setSetting("uri_scheme", "secret");
+      // The field_files we don't want secret, see social_core_update_130007.
+      if ($field_storage['field_name'] === 'field_files') {
+        $storage->setSetting("uri_scheme", "private");
+      }
+      $storage->save();
+      $logger->info('Field storage updated: ' . $field_storage['entity_type'] . '.' . $field_storage['field_name']);
+    }
+    else {
+      $logger->info('Field storage already private: ' . $field_storage['entity_type'] . '.' . $field_storage['field_name']);
+    }
+  }
+}
+
+/**
+ * Change the views.view.content bulk operation field.
+ *
+ * Convert the bulk form field to the view bulk form field
+ * for better VBO support.
+ */
+function social_core_update_130013(): void {
+  /** @var \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory */
+  $logger_factory = \Drupal::service('logger.factory');
+  $logger = $logger_factory->get('social_core');
+
+  $content_view = \Drupal::configFactory()->getEditable('views.view.content');
+  $fields = $content_view->get('display.default.display_options.fields');
+
+  if (!isset($fields['node_bulk_form']) && isset($fields['views_bulk_operations_bulk_form'])) {
+    $logger->info('Fields seem to be already converted');
+    return;
+  }
+
+  // Replace the old field with the new one and porting the active actions.
+  // Unset the old field.
+  unset($fields['node_bulk_form']);
+
+  // Get all the actions related to node.
+  $entity_type = 'node';
+  $entity_type_manager = \Drupal::service('entity_type.manager');
+  $actionStorage = $entity_type_manager->getStorage('action');
+  $actions = array_filter($actionStorage->loadMultiple(), function ($action) use ($entity_type) {
+    return $action->getType() === $entity_type;
+  });
+
+  // Get the selected node bulk actions for the view.
+  $select_options = $content_view->get('display.default.display_options.fields.node_bulk_form.selected_actions');
+  $include_exclude = $content_view->get('display.default.display_options.fields.node_bulk_form.include_exclude');
+  // If not set, use default.
+  if ($include_exclude === NULL) {
+    $include_exclude = 'exclude';
+  }
+
+  // Prepare the plugins that are available.
+  $available_plugins = [];
+  foreach ($actions as $action) {
+    $available_plugins[] = $action->id();
+  }
+
+  // Get the actions that we want migrated depending on the configuration.
+  $migrate_plugins = [];
+  if ($include_exclude === 'include') {
+    // If nothing has been selected, it should include all.
+    if (empty($select_options)) {
+      $migrate_plugins = $available_plugins;
+    }
+    else {
+      // For include we should look for similarities in the arrays.
+      $migrate_plugins = array_intersect($select_options, $available_plugins);
+    }
+  }
+  if ($include_exclude === 'exclude') {
+    // If nothing has been selected, it should exclude all.
+    if (empty($select_options)) {
+      $migrate_plugins = $available_plugins;
+    }
+    else {
+      // For exclude we should look for differences in the arrays.
+      $migrate_plugins = array_diff($available_plugins, $select_options);
+    }
+  }
+
+  // Now convert the migrate_plugins to the new field structure.
+  $migrate_plugins_converted = [];
+  // Get the operations from the VBO for comparing.
+  $vbo_action_manager = \Drupal::service('plugin.manager.views_bulk_operations_action');
+  $vboDefinitions = $vbo_action_manager->getDefinitions();
+  foreach ($migrate_plugins as $migrate_plugin) {
+    // For the node delete there is a difference in the new structure.
+    if ($migrate_plugin === 'node_delete_action') {
+      $migrate_plugins_converted[] = [
+        'action_id' => 'views_bulk_operations_delete_entity',
+      ];
+    }
+    else {
+      $action = $actions[$migrate_plugin];
+      $plugin = $action->getPlugin();
+      $plugin_id = $plugin->getPluginId();
+      // If the action does not exist within the VBO definition we can't
+      // convert and log a message.
+      if (!isset($vboDefinitions[$plugin_id])) {
+        $logger->info('VBO field plugin could not be converted: ' . $plugin_id);
+        continue;
+      }
+      $migrate_plugins_converted[] = [
+        'action_id' => $plugin_id,
+        'preconfiguration' => [
+          'add_confirmation' => FALSE,
+        ],
+      ];
+    }
+  }
+
+  if (empty($migrate_plugins_converted)) {
+    $logger->error('No plugins could be found, aborting conversion');
+    return;
+  }
+
+  // Prepare the new field based on the migrate_plugins.
+  $new_field = [
+    'views_bulk_operations_bulk_form' => [
+      'id' => 'views_bulk_operations_bulk_form',
+      'table' => 'views',
+      'field' => 'views_bulk_operations_bulk_form',
+      'relationship' => 'none',
+      'group_type' => 'group',
+      'admin_label' => '',
+      'plugin_id' => 'views_bulk_operations_bulk_form',
+      'label' => 'Views bulk operations',
+      'exclude' => FALSE,
+      'alter' => [
+        'alter_text' => FALSE,
+        'text' => '',
+        'make_link' => FALSE,
+        'path' => '',
+        'absolute' => FALSE,
+        'external' => FALSE,
+        'replace_spaces' => FALSE,
+        'path_case' => 'none',
+        'trim_whitespace' => FALSE,
+        'alt' => '',
+        'rel' => '',
+        'link_class' => '',
+        'prefix' => '',
+        'suffix' => '',
+        'target' => '',
+        'nl2br' => FALSE,
+        'max_length' => 0,
+        'word_boundary' => TRUE,
+        'ellipsis' => TRUE,
+        'more_link' => FALSE,
+        'more_link_text' => '',
+        'more_link_path' => '',
+        'strip_tags' => FALSE,
+        'trim' => FALSE,
+        'preserve_tags' => '',
+        'html' => FALSE,
+      ],
+      'element_type' => '',
+      'element_class' => '',
+      'element_label_type' => '',
+      'element_label_class' => '',
+      'element_label_colon' => TRUE,
+      'element_wrapper_type' => '',
+      'element_wrapper_class' => '',
+      'element_default_classes' => TRUE,
+      'empty' => '',
+      'hide_empty' => FALSE,
+      'empty_zero' => FALSE,
+      'hide_alter_empty' => TRUE,
+      'batch' => TRUE,
+      'batch_size' => 10,
+      'form_step' => TRUE,
+      'ajax_loader' => FALSE,
+      'buttons' => FALSE,
+      'action_title' => 'Action',
+      'clear_on_exposed' => TRUE,
+      'force_selection_info' => FALSE,
+      'selected_actions' => $migrate_plugins_converted,
+    ],
+  ];
+
+  $fields = array_merge($new_field, $fields);
+
+  // Save fields values.
+  $content_view->set('display.default.display_options.fields', $fields);
+  $content_view->save();
+}
+
+/**
+ * Enable data_policy_export module if data_policy module is enabled.
+ */
+function social_core_update_130014(): void {
+  if (\Drupal::moduleHandler()->moduleExists('data_policy')) {
+    \Drupal::service('module_installer')->install(['data_policy_export']);
+  }
+}
+
+/**
+ * Uninstall all deprecated social modules.
+ */
+function social_core_update_130015(): void {
+  $deprecatedModules = [
+    'social_usercentrics',
+    'social_saas_analytics',
+    'social_onboarding',
+    'social_ethnicity',
+    'social_disability',
+    'social_avatar',
+    'hubspot_analytics',
+    'social_group_migration_test',
+    'social_secret_group_featured',
+    'social_group_secret',
+    'social_lazy_loading',
+  ];
+
+  \Drupal::service('module_installer')->uninstall($deprecatedModules, FALSE);
+
+  // This module has no dependencies and cannot be uninstalled with FALSE.
+  \Drupal::service('module_installer')->uninstall(['social_lets_connect_contact'], TRUE);
+
+  \Drupal::logger("social_core")->info('Deprecated modules uninstalled.');
+}
+
+/**
+ * Uninstall Social Saas Analytics module.
+ */
+function social_core_update_130017(): void {
+  // Uninstall Social Saas Analytics module without module dependencies.
+  \Drupal::service('module_installer')->uninstall(['social_saas_analytics'], FALSE);
+}
+
+/**
+ * Uninstall Social Lazy Loading module.
+ */
+function social_core_update_130018(): void {
+  // Nothing to do if the module is not installed.
+  if (!\Drupal::moduleHandler()->moduleExists('social_lazy_loading')) {
+    return;
+  }
+
+  // Uninstall the module (nothing should depend on it but let the module
+  // uninstaller double-check just in case).
+  \Drupal::service('module_installer')->uninstall(['social_lazy_loading'], FALSE);
+}
+
+/**
+ * Uninstall Lazy module.
+ */
+function social_core_update_130019(): void {
+  // Nothing to do if the module is not installed.
+  if (!\Drupal::moduleHandler()->moduleExists('lazy')) {
+    return;
+  }
+
+  // If there are modules depending on lazy, and it is enabled
+  // we can't uninstall it.
+  $module_dependencies = \Drupal::service('extension.list.module')->get('lazy')->required_by ?? [];
+  $has_dependency_enabled = FALSE;
+  foreach ($module_dependencies as $module_name => $module_dependency) {
+    if (\Drupal::moduleHandler()->moduleExists($module_name)) {
+      $has_dependency_enabled = TRUE;
+      break;
+    }
+  }
+  if ($has_dependency_enabled) {
+    return;
+  }
+
+  // Uninstall the module (nothing should depend on it but let the module
+  // uninstaller double-check just in case).
+  \Drupal::service('module_installer')->uninstall(['lazy'], FALSE);
+
+  // Remove configuration.
+  $config = \Drupal::service('config.factory')->getEditable('lazy.settings');
+  $config->delete()->save();
+}
+
+/**
+ * Add permission for SM to change theme settings for Open Social themes.
+ */
+function social_core_update_130020(): void {
+  user_role_grant_permissions('sitemanager', ['access social theme settings']);
+}
+
+/**
+ * Revoke permission for sitemanager to administer themes.
+ *
+ * So they don't see unnecessary themes, admins can do this in the
+ * Distribution.
+ */
+function social_core_update_130021(): void {
+  user_role_revoke_permissions('sitemanager', ['administer themes']);
+}
+
+/**
+ * Change permission for SM.
+ *
+ * So they can administer site information, menu links for the main
+ * and footer menu, and account settings.
+ */
+function social_core_update_130022(): void {
+  $permissions = [
+    'administer account settings',
+    'administer social site configuration',
+    'administer social menu links',
+  ];
+  user_role_grant_permissions('sitemanager', $permissions);
+
+  // Revoke administer site configuration as we use our own
+  // permission administer social site configuration for this.
+  // This is to prevent SM to get access to a lot of additional items.
+  user_role_revoke_permissions('sitemanager', ['administer site configuration']);
+}
+
+/**
+ * Add permission for authenticated to access select2 autocomplete route.
+ */
+function social_core_update_130023(): void {
+  // This is needed due to security implications that this route exposes.
+  user_role_grant_permissions('verified', ['use select2 autocomplete']);
+  user_role_grant_permissions('contentmanager', ['use select2 autocomplete']);
+  user_role_grant_permissions('sitemanager', ['use select2 autocomplete']);
+}
+
+/**
+ * Fix crop on image style social_medium.
+ */
+function social_core_update_130024(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_core', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}

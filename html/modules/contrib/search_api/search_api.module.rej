@@ -1,0 +1,12 @@
+--- search_api.module
++++ search_api.module
+@@ -507,7 +507,8 @@ function _search_api_views_get_allowed_values($entity_type, $bundle, $field_name
+   if (!empty($field_definitions[$field_name])) {
+     /** @var \Drupal\Core\Field\FieldDefinitionInterface $field_definition */
+     $field_definition = $field_definitions[$field_name];
+-    $options = $field_definition->getSetting('allowed_values');
++
++    $options = options_allowed_values($field_definition->getFieldStorageDefinition());
+     if ($options) {
+       return $options;
+     }

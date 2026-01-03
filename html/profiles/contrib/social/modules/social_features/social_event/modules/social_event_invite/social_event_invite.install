@@ -1,0 +1,108 @@
+<?php
+
+/**
+ * @file
+ * The Social event invite enroll install.
+ */
+
+use Drupal\field\Entity\FieldConfig;
+use Drupal\group\Entity\GroupType;
+
+/**
+ * Implements hook_install().
+ */
+function social_event_invite_install() {
+  // Enable event invites for all group types by default by setting the settings
+  // to group_type => group_type for each defined group bundle.
+  // @todo https://www.drupal.org/project/social/issues/3421951.
+  $group_types = GroupType::loadMultiple();
+  $invite_group_types = array_combine(array_keys($group_types), array_keys($group_types));
+
+  \Drupal::configFactory()->getEditable('social_event_invite.settings')
+    ->set('invite_group_types', $invite_group_types)
+    ->save();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function social_event_invite_uninstall() {
+  $moduleHandler = \Drupal::service('module_handler');
+  // Delete the email field if social_event_an_enroll is not enabled.
+  // @todo is there a way to get field dependencies instead of manual?
+  if (!$moduleHandler->moduleExists('social_event_an_enroll')) {
+    $field = FieldConfig::loadByName('event_enrollment', 'event_enrollment', 'field_email');
+    if ($field) {
+      $field->delete();
+    }
+  }
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_event_invite_update_dependencies(): array {
+  // Ensure configurations updates runs after the group migration has completed,
+  // but before the group types are removed.
+  $dependencies['social_event_invite'][13000] = [
+    'social_group' => 13000,
+  ];
+  $dependencies['social_group'][13001] = [
+    'social_event_invite' => 13000,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_event_invite_update_last_removed() : int {
+  return 11402;
+}
+
+/**
+ * Disable mail notification for message template .
+ */
+function social_event_invite_update_12001(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_event_invite', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_event_invite_update_13000(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_event_invite', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Update access rules to "user/{uid}/event-invites" page.
+ */
+function social_event_invite_update_13001() : string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+  $updater->executeUpdate('social_event_invite', __FUNCTION__);
+  return $updater->logger()->output();
+}

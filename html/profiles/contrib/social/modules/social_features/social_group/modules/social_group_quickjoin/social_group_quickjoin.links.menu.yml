@@ -1,0 +1,6 @@
+social_group_quickjoin.hubs.settings:
+  route_name: social_group_quickjoin.settings
+  title: 'Quick join'
+  description: 'Settings for group quckjoin.'
+  parent: system.admin_group
+  weight: 11

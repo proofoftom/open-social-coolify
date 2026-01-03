@@ -1,0 +1,93 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_content_block module.
+ */
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_content_block_update_dependencies() : array {
+  // Ensure configurations updates runs after the group migration has completed.
+  $dependencies['social_content_block'][13000] = [
+    'social_group' => 13000,
+  ];
+
+  $dependencies['social_group'][13001] = [
+    'social_content_block' => 13000,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_modules_installed().
+ */
+function social_content_block_modules_installed() {
+  // When the set of installed modules change, reload the sorting optios.
+  _social_content_block_update_sorting_options();
+}
+
+/**
+ * Update the allowed values in the sorting options field based on plugins.
+ */
+function _social_content_block_update_sorting_options() {
+  /** @var \Drupal\social_content_block\ContentBlockManagerInterface $content_block_manager */
+  $content_block_manager = \Drupal::service('plugin.manager.content_block');
+
+  // Retrieve all sort options, removing duplicates and format them to the
+  // format of field storage configuration.
+  $sort_options = [];
+
+  foreach (array_keys($content_block_manager->getDefinitions()) as $plugin_id) {
+    $plugin = $content_block_manager->createInstance($plugin_id);
+
+    foreach ($plugin->supportedSortOptions() as $name => $settings) {
+      $sort_options[] = [
+        'value' => $name,
+        'label' => is_array($settings) ? $settings['label'] : $settings,
+      ];
+    }
+  }
+
+  // Load the existing configuration and update it if it's different.
+  $config_name = 'field.storage.block_content.field_sorting';
+  $config = \Drupal::configFactory()->getEditable($config_name);
+  $config_data = $config->getRawData();
+
+  if ($sort_options !== $config_data['settings']['allowed_values']) {
+    $config_data['settings']['allowed_values'] = $sort_options;
+    $config->setData($config_data)->save();
+    \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
+  }
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_content_block_update_last_removed() : int {
+  return 11801;
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_content_block_update_13000(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_content_block', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}

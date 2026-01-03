@@ -1,0 +1,9 @@
+name: Hux Alter Test
+type: module
+description: Tests for HUX.
+package: Testing
+
+# Information added by Drupal.org packaging script on 2024-08-14
+version: '1.6.0'
+project: 'hux'
+datestamp: 1723627558

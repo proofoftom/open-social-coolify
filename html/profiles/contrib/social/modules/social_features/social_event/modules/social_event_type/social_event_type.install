@@ -1,0 +1,102 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_event_type module.
+ */
+
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_event_type.
+ */
+function social_event_type_install() {
+  // Fetch sitemananger role.
+  $role = Role::load('sitemanager');
+  // Set permission for site manager.
+  if ($role instanceof Role) {
+    // Set permission.
+    $role->grantPermission('set social event type settings');
+    $role->grantPermission('edit terms in event_types');
+    $role->grantPermission('create terms in event_types');
+    $role->grantPermission('delete terms in event_types');
+    $role->trustData()->save();
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ *
+ * Perform actions related to the de-installation of social_event_type.
+ */
+function social_event_type_uninstall() {
+  // Fetch sitemananger role.
+  $role = Role::load('sitemanager');
+  // Set permission for site manager.
+  if ($role instanceof Role) {
+    // Set permission.
+    $role->revokePermission('set social event type settings');
+    $role->revokePermission('edit terms in event_types');
+    $role->revokePermission('create terms in event_types');
+    $role->revokePermission('delete terms in event_types');
+    $role->trustData()->save();
+  }
+
+  // Also remove the fields and the vocabulary.
+  \Drupal::configFactory()->getEditable('field.field.node.event.field_event_type')->delete();
+  \Drupal::configFactory()->getEditable('field.storage.node.field_event_type')->delete();
+  \Drupal::configFactory()->getEditable('taxonomy.vocabulary.event_types')->delete();
+  \Drupal::configFactory()->getEditable('social_event_type.settings')->delete();
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_event_type_update_last_removed() : int {
+  return 11201;
+}
+
+/**
+ * Grant permissions for SM to create terms in event_types vocabulary.
+ */
+function social_event_type_update_130001(): void {
+  user_role_grant_permissions('sitemanager', ['create terms in event_types']);
+}
+
+/**
+ * Hidden path from Event Type taxonomy.
+ */
+function social_event_type_update_130002(): void {
+  $storage = \Drupal::entityTypeManager()->getStorage('entity_form_display');
+  $form_display = $storage->load('taxonomy_term.event_types.default');
+
+  // If the entity-form-display isn't found, return early.
+  if (empty($form_display)) {
+    \Drupal::logger('social_event_type')->info('The entity-form-display from Event Type taxonomy is empty.');
+    return;
+  }
+
+  // Get fields and check if path is already be hidden.
+  $hidden = $form_display->get('hidden');
+  $content = $form_display->get('content');
+  if (in_array('path', array_keys($hidden))) {
+    \Drupal::logger('social_event_type')->info('The path field already is hidden on Profile Tag taxonomy.');
+    return;
+  }
+
+  // Manipulate path field to be hidden and save.
+  $hidden['path'] = TRUE;
+  unset($content['path']);
+  $form_display->set('hidden', $hidden)
+    ->set('content', $content)
+    ->save();
+}
+
+/**
+ * Grant permissions for SM to set social event type settings.
+ */
+function social_event_type_update_130003(): void {
+  user_role_grant_permissions('sitemanager', ['set social event type settings']);
+}

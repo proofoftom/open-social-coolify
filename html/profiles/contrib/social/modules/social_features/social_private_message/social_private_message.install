@@ -1,0 +1,230 @@
+<?php
+
+/**
+ * @file
+ * The Social Private Message (de)installation file.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function social_private_message_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    'verified',
+    [
+      'use private messaging system',
+      'create private messages thread',
+      'reply to private messages thread',
+      'delete private messages thread',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'use private messaging system',
+      'create private messages thread',
+      'reply to private messages thread',
+      'delete private messages thread',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'use private messaging system',
+      'create private messages thread',
+      'reply to private messages thread',
+      'delete private messages thread',
+    ]
+  );
+
+  // Disable the email notification provided by private_message.
+  /** @var \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $config */
+  \Drupal::getContainer()
+    ->get('config.factory')
+    ->getEditable('private_message.settings')
+    ->set('enable_notifications', FALSE)
+    ->set('notify_by_default', FALSE)
+    ->set('keys_send', '')
+    ->save();
+
+  // Set module weight.
+  module_set_weight('social_private_message', 1);
+
+  // Alter display configuration of the private message module.
+  _social_private_message_set_private_message_default_form_settings();
+  _social_private_message_set_private_message_default_view_settings();
+  _social_private_message_set_private_message_inbox_view_settings();
+  _social_private_message_set_private_message_thread_default_view_settings();
+
+  // Disable the default message template provided by private_message.
+  \Drupal::configFactory()->getEditable('message.template.private_message_notification')
+    ->set('status', FALSE)
+    ->save();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function social_private_message_uninstall(bool $is_syncing) : void {
+  // Delete any notifications that exist for private messages since we're
+  // removing the template.
+  $message_ids = \Drupal::entityQuery('message')
+    ->accessCheck(TRUE)
+    ->condition('template', 'create_private_message')
+    ->execute();
+  assert(is_array($message_ids));
+
+  $storage = \Drupal::entityTypeManager()->getStorage('message');
+  $entities = $storage->loadMultiple($message_ids);
+  $storage->delete($entities);
+}
+
+/**
+ * Sets the widget for selecting Private Message thread members.
+ */
+function _social_private_message_set_private_message_default_form_settings() {
+  /** @var \Drupal\Core\Entity\Display\EntityFormDisplayInterface $pm_form_display */
+  $pm_form_display = \Drupal::service('entity_type.manager')
+    ->getStorage('entity_form_display')
+    ->load('private_message_thread.private_message_thread.default');
+
+  $pm_form_members_field = $pm_form_display->getComponent('members');
+
+  $pm_form_members_field['type'] = 'social_private_message_thread_member_widget';
+
+  $pm_form_display
+    ->setComponent('members', $pm_form_members_field)
+    ->save();
+}
+
+/**
+ * Set the Open Social specific settings for the private message default view.
+ */
+function _social_private_message_set_private_message_default_view_settings() {
+  /** @var \Drupal\Core\Entity\Display\EntityViewDisplayInterface $pm_view_display */
+  $pm_view_display = \Drupal::service('entity_type.manager')
+    ->getStorage('entity_view_display')
+    ->load('private_message.private_message.default');
+
+  $created_field = $pm_view_display->getComponent('created');
+  $created_field['type'] = 'timestamp_ago';
+  $created_field['settings'] = [
+    'granularity' => 1,
+    'future_format' => '@interval hence',
+    'past_format' => '@interval ago',
+  ];
+
+  $owner_field = $pm_view_display->getComponent('owner');
+  $owner_field['type'] = 'social_private_message_owner_formatter';
+  $owner_field['settings'] = ['link' => FALSE];
+
+  $pm_view_display
+    ->setComponent('created', $created_field)
+    ->setComponent('owner', $owner_field)
+    ->save();
+}
+
+/**
+ * Set the Open Social specific settings for the private message inbox view.
+ */
+function _social_private_message_set_private_message_inbox_view_settings() {
+  /** @var \Drupal\Core\Entity\Display\EntityViewDisplayInterface $pm_view_display */
+  $pm_view_display = \Drupal::service('entity_type.manager')
+    ->getStorage('entity_view_display')
+    ->load('private_message.private_message.inbox');
+
+  $created_field = $pm_view_display->getComponent('created');
+  $created_field['type'] = 'timestamp_ago';
+  $created_field['settings'] = [
+    'granularity' => 1,
+    'future_format' => '@interval hence',
+    'past_format' => '@interval ago',
+  ];
+
+  $owner_field = $pm_view_display->getComponent('owner');
+  $owner_field['type'] = 'entity_reference_label';
+  $owner_field['label'] = 'hidden';
+  $owner_field['settings'] = ['link' => FALSE];
+
+  $pm_view_display
+    ->setComponent('created', $created_field)
+    ->setComponent('owner', $owner_field)
+    ->save();
+}
+
+/**
+ * Set the OS specific settings for the private message thread default view.
+ */
+function _social_private_message_set_private_message_thread_default_view_settings() {
+  /** @var \Drupal\Core\Entity\Display\EntityViewDisplayInterface $pm_view_display */
+  $pm_view_display = \Drupal::service('entity_type.manager')
+    ->getStorage('entity_view_display')
+    ->load('private_message_thread.private_message_thread.default');
+
+  $deleted_field = [
+    'weight' => -100,
+    'region' => 'content',
+    'settings' => [],
+    'third_party_settings' => [],
+  ];
+
+  $members_field = $pm_view_display->getComponent('members');
+  $members_field['type'] = 'social_private_message_thread_member_formatter';
+  $members_field['label'] = 'hidden';
+
+  $pm_field = $pm_view_display->getComponent('private_messages');
+  $pm_field['label'] = 'hidden';
+  $pm_field['settings'] = [
+    'message_count' => 30,
+    'ajax_previous_load_count' => 5,
+    'ajax_refresh_rate' => 120,
+    'message_order' => 'asc',
+  ];
+
+  $pm_view_display
+    ->setComponent('deleted_field', $deleted_field)
+    ->setComponent('members', $members_field)
+    ->setComponent('private_messages', $pm_field)
+    ->save();
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_private_message_update_last_removed() : int {
+  return 11402;
+}
+
+/**
+ * Change a weight of ckeditor5_premium_features_realtime_collaboration.
+ *
+ * It should be loaded after overriding text format to pass a check.
+ *
+ * @see: hasCollaborationFeaturesEnabled().
+ */
+function social_private_message_update_130001(): void {
+  $module = 'ckeditor5_premium_features_realtime_collaboration';
+  if (\Drupal::moduleHandler()->moduleExists($module)) {
+    module_set_weight($module, 2);
+  }
+}
+
+/**
+ * Revert a default weight of ckeditor5_premium_features_realtime_collaboration.
+ */
+function social_private_message_update_130002(): void {
+  $module = 'ckeditor5_premium_features_realtime_collaboration';
+  if (\Drupal::moduleHandler()->moduleExists($module)) {
+    module_set_weight($module, 0);
+  }
+}
+
+/**
+ * Remove the default key setting.
+ */
+function social_private_message_update_130003(): void {
+  \Drupal::configFactory()->getEditable('private_message.settings')
+    ->set('keys_send', '')
+    ->save();
+}

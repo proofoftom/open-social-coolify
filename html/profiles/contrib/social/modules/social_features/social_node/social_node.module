@@ -1,0 +1,111 @@
+<?php
+
+/**
+ * @file
+ * The social node module alterations.
+ */
+
+use Drupal\Core\Database\Query\AlterableInterface;
+use Drupal\Core\Database\Query\SelectInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\social_node\Entity\Node;
+use Drupal\social_node\QueryAccess\NodeEntityQueryAlter;
+use Drupal\social_node\SocialNodeForm;
+use Drupal\social_node\NodeViewBuilder;
+
+/**
+ * Implements hook_entity_type_alter().
+ */
+function social_node_entity_type_alter(array &$entity_types) {
+  /** @var \Drupal\Core\Entity\EntityTypeInterface[] $entity_types */
+  if (isset($entity_types['node'])) {
+    $entity_types['node']->setClass(Node::class);
+    $entity_types['node']->setViewBuilderClass(NodeViewBuilder::class);
+
+    foreach (['default', 'edit'] as $operation) {
+      $entity_types['node']->setFormClass($operation, SocialNodeForm::class);
+    }
+
+    // Remove node grants context cache.
+    $entity_types['node']->set('list_cache_contexts', []);
+  }
+}
+
+/**
+ * Implements hook_social_tagging_type().
+ */
+function social_node_social_tagging_type(): string {
+  return 'node';
+}
+
+/**
+ * Implements hook_social_core_add_form_title_override().
+ *
+ * Override page title for the given routes.
+ */
+function social_node_social_core_add_form_title_override(): array {
+  $callback = function () {
+    if ($node_type_param = \Drupal::routeMatch()->getParameter('node_type')) {
+      if ($node_type = \Drupal::entityTypeManager()->getStorage('node_type')->load($node_type_param->id())) {
+        return $node_type->label();
+      }
+    }
+
+    return 'Content';
+  };
+
+  return [
+    'node.add' => [
+      'label' => $callback,
+    ],
+    'node.add_page' => [
+      'label' => 'Content',
+    ],
+    'entity.node.add_form' => [
+      'label' => $callback,
+    ],
+  ];
+}
+
+/**
+ * Implements hook_query_TAG_alter() for "node_access".
+ */
+function social_node_query_node_access_alter(AlterableInterface $query): void {
+  if (!$query instanceof SelectInterface) {
+    return;
+  }
+
+  \Drupal::service('class_resolver')
+    ->getInstanceFromDefinition(NodeEntityQueryAlter::class)
+    ->alterQuery($query);
+}
+
+/**
+ * Implements hook_query_TAG_alter().
+ */
+function social_node_query_views_entity_query_alter(AlterableInterface $query): void {
+  if (!$query instanceof SelectInterface) {
+    return;
+  }
+
+  if ($query->getMetaData('entity_type') !== 'node') {
+    return;
+  }
+
+  social_node_query_node_access_alter($query);
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_presave() for "search_api_index".
+ */
+function social_node_search_api_index_presave(EntityInterface $index): void {
+  /** @var \Drupal\search_api\IndexInterface $index */
+  $processors = $index->getProcessors();
+  if (!isset($processors['content_access'])) {
+    return;
+  }
+
+  $index->removeProcessor('content_access');
+  \Drupal::messenger()
+    ->addWarning(t('"Content Access" processor is not allowed for using (replaced by query alters).'));
+}

@@ -1,0 +1,253 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_group_invite module.
+ */
+
+use Drupal\group\Entity\GroupType;
+use Drupal\language\ConfigurableLanguageManagerInterface;
+
+/**
+ * Implements hook_install().
+ *
+ * @throws \Drupal\Core\Entity\EntityStorageException
+ */
+function social_group_invite_install() {
+  // Assign permissions by default to all group types
+  // that have group_invitation enabled.
+  foreach (GroupType::loadMultiple() as $group_type) {
+    if ($group_type->hasPlugin('group_invitation')) {
+      social_group_invite_set_default_permissions_for_group_type($group_type);
+    }
+  }
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_group_invite_update_last_removed() : int {
+  return 11503;
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_group_invite_update_13000(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_group_invite', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Update email invitation messages with new token for the symfony mailer.
+ */
+function social_group_invite_update_13001(): void {
+  $config_factory = \Drupal::configFactory();
+
+  // Groups to look for translation.
+  $groups = [
+    'secret_group',
+    'closed_group',
+    'flexible_group',
+    'open_group',
+    'public_group',
+  ];
+
+  foreach ($groups as $group) {
+    $config_name = sprintf('group.content_type.%s-group_invitation', $group);
+    $configuration = $config_factory->getEditable($config_name);
+
+    // When the plugin is empty, go to the next.
+    $plugin_config_data = $configuration->getOriginal('plugin_config');
+    if (empty($plugin_config_data)) {
+      continue;
+    }
+
+    // Change tokens.
+    if (!empty($plugin_config_data['existing_user_invitation_subject'])) {
+      $plugin_config_data['existing_user_invitation_subject'] = str_replace('[current-user:display-name]', '[user:display-name]', $plugin_config_data['existing_user_invitation_subject']);
+    }
+    if (!empty($plugin_config_data['existing_user_invitation_body'])) {
+      $plugin_config_data['existing_user_invitation_body'] = str_replace('[current-user:display-name]', '[user:display-name]', $plugin_config_data['existing_user_invitation_body']);
+    }
+    $configuration->set('plugin_config', $plugin_config_data);
+    $configuration->save();
+
+    // When the Social Language is disabled, go to the next.
+    if (!\Drupal::service('module_handler')->moduleExists('social_language')) {
+      continue;
+    }
+
+    // Change token from email template from languages.
+    $language_manager = \Drupal::languageManager();
+    foreach ($language_manager->getLanguages() as $language) {
+      if (!$language_manager instanceof ConfigurableLanguageManagerInterface) {
+        continue;
+      }
+      $config_translation = $language_manager->getLanguageConfigOverride($language->getId(), $config_name);
+
+      // When the current language don't have translation, go to the next.
+      $plugin_config_data = $config_translation->get('plugin_config');
+      if (empty($plugin_config_data)) {
+        continue;
+      }
+
+      // Change tokens.
+      if (!empty($plugin_config_data['existing_user_invitation_subject'])) {
+        $plugin_config_data['existing_user_invitation_subject'] = str_replace('[current-user:display-name]', '[user:display-name]', $plugin_config_data['existing_user_invitation_subject']);
+      }
+      if (!empty($plugin_config_data['existing_user_invitation_body'])) {
+        $plugin_config_data['existing_user_invitation_body'] = str_replace('[current-user:display-name]', '[user:display-name]', $plugin_config_data['existing_user_invitation_body']);
+      }
+      $config_translation->set('plugin_config', $plugin_config_data);
+      $config_translation->save();
+    }
+  }
+}
+
+/**
+ * Remove redundant blocks with pending notifications.
+ */
+function social_group_invite_update_13002(): void {
+  $deprecated_blocks = [
+    'block.block.membershipinvitenotification_3',
+    'block.block.membershipinvitenotification_4',
+  ];
+
+  foreach ($deprecated_blocks as $name) {
+    \Drupal::configFactory()
+      ->getEditable($name)
+      ->delete();
+  }
+}
+
+/**
+ * Update group_invite views config to use a correct table.
+ */
+function social_group_invite_update_13003() : string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_group_invite', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Update group_invite views config to use a correct table - membership count.
+ */
+function social_group_invite_update_13004(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_group_invite', 'social_group_invite_update_13004');
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Update user group invitations view configuration.
+ */
+function social_group_invite_update_13005() : void {
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('views.view.social_group_user_invitations');
+
+  // Let's check if this configuration object does exist in storage before
+  // updating it.
+  if (!$config->isNew()) {
+    $config->set('display.default.display_options.filters.uid_current', [
+      'admin_label' => '',
+      'entity_type' => 'user',
+      'expose' => [
+        'description' => '',
+        'identifier' => '',
+        'label' => '',
+        'multiple' => FALSE,
+        'operator' => '',
+        'operator_id' => '',
+        'operator_limit_selection' => FALSE,
+        'operator_list' => [],
+        'remember' => FALSE,
+        'remember_roles' => [
+          'authenticated' => 'authenticated',
+        ],
+        'required' => FALSE,
+        'use_operator' => FALSE,
+      ],
+      'exposed' => FALSE,
+      'field' => 'uid_current',
+      'group' => 1,
+      'group_info' => [
+        'default_group' => 'All',
+        'default_group_multiple' => [],
+        'description' => '',
+        'group_items' => [],
+        'identifier' => '',
+        'label' => '',
+        'multiple' => FALSE,
+        'optional' => TRUE,
+        'remember' => FALSE,
+        'widget' => 'select',
+      ],
+      'group_type' => 'group',
+      'id' => 'uid_current',
+      'is_grouped' => FALSE,
+      'operator' => '=',
+      'plugin_id' => 'user_current',
+      'relationship' => 'gc__user',
+      'table' => 'users',
+      'value' => '1',
+    ]);
+
+    $config->set('display.default.display_options.access.options.role', [
+      'administrator' => 'administrator',
+      'verified' => 'verified',
+    ]);
+
+    $config->save();
+  }
+}
+
+/**
+ * Remove redundant blocks with pending notifications.
+ */
+function social_group_invite_update_13006(): void {
+  $deprecated_blocks = [
+    'block.block.membershipinvitenotification_3',
+    'block.block.membershipinvitenotification_4',
+  ];
+
+  foreach ($deprecated_blocks as $name) {
+    \Drupal::configFactory()
+      ->getEditable($name)
+      ->delete();
+  }
+}
+
+/**
+ * Update access rules to "user/{uid}/invites" page.
+ */
+function social_group_invite_update_13007() : string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+  $updater->executeUpdate('social_group_invite', __FUNCTION__);
+  return $updater->logger()->output();
+}

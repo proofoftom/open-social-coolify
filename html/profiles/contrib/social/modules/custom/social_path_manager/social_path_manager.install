@@ -1,0 +1,23 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_path_manager module.
+ */
+
+/**
+ * Implements hook_uninstall().
+ */
+function social_path_manager_uninstall(): void {
+  $config_factory = \Drupal::configFactory();
+
+  $installed_configs = [
+    'pathauto.pattern.default_content_types',
+    'pathauto.pattern.default_group_types',
+    'pathauto.pattern.default_taxonomy_terms',
+  ];
+
+  foreach ($installed_configs as $config) {
+    $config_factory->getEditable($config)->delete();
+  }
+}

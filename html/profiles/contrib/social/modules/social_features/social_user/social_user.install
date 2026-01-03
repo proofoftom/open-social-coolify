@@ -1,0 +1,294 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_user module.
+ */
+
+use Drupal\user\RoleInterface;
+use Drupal\user\UserInterface;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_user.
+ */
+function social_user_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'cancel account',
+      'change own username',
+      'select account cancellation method',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'access user profiles',
+      'select account cancellation method',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'access user profiles',
+      'select account cancellation method',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'access user profiles',
+      'view users',
+      'block users',
+      'administer navigation settings',
+      'administer social_user settings',
+      'assign contentmanager role',
+      'assign sitemanager role',
+      'assign verified role',
+      'view blocked user',
+      'select account cancellation method',
+    ]
+  );
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_user_update_dependencies(): array {
+  // Ensure configurations updates runs after the group migration has completed,
+  // but before the group types are removed.
+  $dependencies['social_user'][13000] = [
+    'social_group' => 13000,
+  ];
+  $dependencies['social_group'][13001] = [
+    'social_user' => 13000,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_user_update_last_removed() : int {
+  return 11402;
+}
+
+/**
+ * Update 'views.view.user_admin_people'.
+ *
+ * Replace the login filter to last access and change label of access field.
+ */
+function social_user_update_12001(array &$sandbox): void {
+  $config = \Drupal::configFactory()
+    ->getEditable('views.view.user_admin_people');
+
+  $data = $config->getRawData();
+
+  // Replace the login filter to last access.
+  if (isset($data['display']['default']['display_options']['filters']['login'])) {
+    $filters = $data['display']['default']['display_options']['filters'];
+    $filters['login']['id'] = 'access';
+    $filters['login']['field'] = 'access';
+    $filters['login']['entity_field'] = 'access';
+
+    if (isset($filters['login']['expose'])) {
+      $filters['login']['expose']['operator_id'] = 'access_op';
+      $filters['login']['expose']['label'] = 'Last activity';
+      $filters['login']['expose']['operator'] = 'access_op';
+      $filters['login']['expose']['identifier'] = 'access';
+    }
+
+    // Replace key 'login' to 'access'.
+    $keys = array_keys($filters);
+    $keys[array_search('login', $keys)] = 'access';
+    $filters_updated = array_combine($keys, $filters);
+
+    // Set updated filters.
+    $data['display']['default']['display_options']['filters'] = $filters_updated;
+  }
+
+  // Change label of access field.
+  if (isset($data['display']['default']['display_options']['fields']['access'])) {
+    $data['display']['default']['display_options']['fields']['access']['label'] = 'Last activity';
+  }
+
+  $config->setData($data)->save(TRUE);
+}
+
+/**
+ * Enable views_ef_fieldset module and reorganize filters in admin/people page.
+ */
+function social_user_update_12002(array &$sandbox): string {
+  // Enable views_ef_fieldset module.
+  \Drupal::service('module_installer')->install(['views_ef_fieldset'], TRUE);
+
+  /** @var \Drupal\update_helper\UpdaterInterface $update_helper */
+  $update_helper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $update_helper->executeUpdate('social_user', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $update_helper->logger()->output();
+}
+
+/**
+ * Change search operator in views.view.user_admin_people.
+ */
+function social_user_update_12201(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_user', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_user_update_13000(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_user', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Update user_admin_people views config to use a correct table.
+ */
+function social_user_update_13001() : string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_user', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Copy show-main-in-messages to new structure and delete old structure.
+ */
+function social_user_update_13002(): void {
+  $system_config = \Drupal::configFactory()
+    ->get('system.site');
+
+  // Return early when this configuration is empty.
+  if (empty($system_config->get('show_mail_in_messages'))) {
+    return;
+  }
+
+  // Copy configuration to new structure.
+  \Drupal::configFactory()
+    ->getEditable('social_user.settings')
+    ->set('show_mail_in_messages', (boolean) $system_config->get('show_mail_in_messages'))
+    ->save();
+
+  // Delete old structure.
+  \Drupal::configFactory()
+    ->getEditable('system.site')
+    ->clear('show_mail_in_messages')
+    ->save();
+}
+
+/**
+ * Add an external identifier field to the user entity.
+ */
+function social_user_update_13003() : string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_user', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Copy show-main-in-messages to new structure and delete old structure.
+ */
+function social_user_update_13004(): void {
+  $system_config = \Drupal::configFactory()
+    ->get('system.site');
+
+  // Return early when this configuration is empty.
+  if (is_null($system_config->get('show_mail_in_messages'))) {
+    return;
+  }
+
+  // Copy configuration to new structure.
+  \Drupal::configFactory()
+    ->getEditable('social_user.settings')
+    ->set('show_mail_in_messages', (boolean) $system_config->get('show_mail_in_messages'))
+    ->save();
+
+  // Delete old structure.
+  \Drupal::configFactory()
+    ->getEditable('system.site')
+    ->clear('show_mail_in_messages')
+    ->save();
+}
+
+/**
+ * LU should not have access to other users pages (except owns).
+ */
+function social_user_update_13005(): void {
+  user_role_revoke_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'access user profiles',
+      'view any profile profile',
+    ]
+  );
+}
+
+/**
+ * Add the permission 'assign verified role' to SM, and if not present.
+ */
+function social_user_update_13006(): void {
+  user_role_grant_permissions('sitemanager', ['assign verified role']);
+}
+
+/**
+ * Remove unnecessary roles from anonymous users.
+ */
+function social_user_update_13007(): void {
+  $user_storage = \Drupal::entityTypeManager()->getStorage('user');
+  $anonymous_user = $user_storage->load(0);
+  assert($anonymous_user instanceof UserInterface);
+
+  $arr_roles = [
+    'verified',
+    'contentmanager',
+    'sitemanager',
+  ];
+  foreach ($arr_roles as $role) {
+    if ($anonymous_user->hasRole($role)) {
+      $anonymous_user->removeRole($role);
+    }
+
+  }
+
+  $anonymous_user->save();
+}

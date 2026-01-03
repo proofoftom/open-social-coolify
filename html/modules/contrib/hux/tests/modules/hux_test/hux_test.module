@@ -1,0 +1,90 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @file
+ * Hooks for Hux Test.
+ */
+
+use Drupal\hux_test\HuxTestCallTracker;
+
+/**
+ * Implements hook_foo().
+ */
+function hux_test_foo(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements hook_foo2().
+ */
+function hux_test_foo2(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements hook_foo3().
+ */
+function hux_test_foo3(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements hook_foo4().
+ */
+function hux_test_foo4(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements hook_original_invoker_attribute_first().
+ */
+function hux_test_original_invoker_attribute_first(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements original_invoker_attribute_middle().
+ */
+function hux_test_original_invoker_attribute_middle(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements original_invoker_attribute_last().
+ */
+function hux_test_original_invoker_attribute_last(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements hook_single_invoke().
+ */
+function hux_test_single_invoke(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements hook_test_hook_single_invoke_return().
+ */
+function hux_test_test_hook_single_invoke_return(): string {
+  HuxTestCallTracker::record(__FUNCTION__);
+  return __FUNCTION__ . ' return';
+}
+
+/**
+ * Implements hook_single_invoke_argument_reference().
+ */
+function hux_test_single_invoke_argument_reference(int &$something): void {
+  $something++;
+  HuxTestCallTracker::record([__FUNCTION__, $something]);
+}

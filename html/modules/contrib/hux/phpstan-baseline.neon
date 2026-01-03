@@ -1,0 +1,167 @@
+parameters:
+	ignoreErrors:
+		-
+			message: "#^Call to function assert\\(\\) with true will always evaluate to true\\.$#"
+			count: 3
+			path: src/HuxDiscovery.php
+
+		-
+			message: "#^Instanceof between Drupal\\\\hux\\\\Attribute\\\\Alter and Drupal\\\\hux\\\\Attribute\\\\Alter will always evaluate to true\\.$#"
+			count: 1
+			path: src/HuxDiscovery.php
+
+		-
+			message: "#^Instanceof between Drupal\\\\hux\\\\Attribute\\\\Hook and Drupal\\\\hux\\\\Attribute\\\\Hook will always evaluate to true\\.$#"
+			count: 1
+			path: src/HuxDiscovery.php
+
+		-
+			message: "#^Instanceof between Drupal\\\\hux\\\\Attribute\\\\ReplaceOriginalHook and Drupal\\\\hux\\\\Attribute\\\\ReplaceOriginalHook will always evaluate to true\\.$#"
+			count: 1
+			path: src/HuxDiscovery.php
+
+		-
+			message: "#^Method Drupal\\\\hux\\\\HuxModuleHandler\\:\\:addModule\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/HuxModuleHandler.php
+
+		-
+			message: "#^Method Drupal\\\\hux\\\\HuxModuleHandler\\:\\:addProfile\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/HuxModuleHandler.php
+
+		-
+			message: "#^Method Drupal\\\\hux\\\\HuxModuleHandler\\:\\:loadAll\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/HuxModuleHandler.php
+
+		-
+			message: "#^Method Drupal\\\\hux\\\\HuxModuleHandler\\:\\:loadAllIncludes\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/HuxModuleHandler.php
+
+		-
+			message: "#^Method Drupal\\\\hux\\\\HuxModuleHandler\\:\\:reload\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/HuxModuleHandler.php
+
+		-
+			message: "#^Method Drupal\\\\hux\\\\HuxModuleHandler\\:\\:resetImplementations\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/HuxModuleHandler.php
+
+		-
+			message: "#^Method Drupal\\\\hux\\\\HuxModuleHandler\\:\\:setModuleList\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/HuxModuleHandler.php
+
+		-
+			message: "#^Method Drupal\\\\hux\\\\HuxModuleHandler\\:\\:writeCache\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/HuxModuleHandler.php
+
+		-
+			message: "#^Parameter \\#2 \\$callback \\(callable\\(callable, string\\)\\: mixed\\) of method Drupal\\\\hux\\\\HuxModuleHandler\\:\\:invokeAllWith\\(\\) should be contravariant with parameter \\$callback \\(callable\\(\\)\\: mixed\\) of method Drupal\\\\Core\\\\Extension\\\\ModuleHandlerInterface\\:\\:invokeAllWith\\(\\)$#"
+			count: 1
+			path: src/HuxModuleHandler.php
+
+		-
+			message: "#^Method Drupal\\\\hux\\\\HuxServiceProvider\\:\\:register\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/HuxServiceProvider.php
+
+		-
+			message: "#^Function hux_alter_test_buzz_alter\\(\\) has parameter \\$context1 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/hux_alter_test.module
+
+		-
+			message: "#^Function hux_alter_test_buzz_alter\\(\\) has parameter \\$context2 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/hux_alter_test.module
+
+		-
+			message: "#^Function hux_alter_test_buzz_alter\\(\\) has parameter \\$data with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/hux_alter_test.module
+
+		-
+			message: "#^Function hux_alter_test_fizz_alter\\(\\) has parameter \\$context1 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/hux_alter_test.module
+
+		-
+			message: "#^Function hux_alter_test_fizz_alter\\(\\) has parameter \\$context2 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/hux_alter_test.module
+
+		-
+			message: "#^Function hux_alter_test_fizz_alter\\(\\) has parameter \\$data with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/hux_alter_test.module
+
+		-
+			message: "#^Method Drupal\\\\hux_alter_test\\\\HuxAlterTestHooks\\:\\:testAlter1\\(\\) has parameter \\$context1 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/src/HuxAlterTestHooks.php
+
+		-
+			message: "#^Method Drupal\\\\hux_alter_test\\\\HuxAlterTestHooks\\:\\:testAlter1\\(\\) has parameter \\$context2 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/src/HuxAlterTestHooks.php
+
+		-
+			message: "#^Method Drupal\\\\hux_alter_test\\\\HuxAlterTestHooks\\:\\:testAlter1\\(\\) has parameter \\$data with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/src/HuxAlterTestHooks.php
+
+		-
+			message: "#^Method Drupal\\\\hux_alter_test\\\\HuxAlterTestHooks\\:\\:testAlter2\\(\\) has parameter \\$context1 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/src/HuxAlterTestHooks.php
+
+		-
+			message: "#^Method Drupal\\\\hux_alter_test\\\\HuxAlterTestHooks\\:\\:testAlter2\\(\\) has parameter \\$context2 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/src/HuxAlterTestHooks.php
+
+		-
+			message: "#^Method Drupal\\\\hux_alter_test\\\\HuxAlterTestHooks\\:\\:testAlter2\\(\\) has parameter \\$data with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/src/HuxAlterTestHooks.php
+
+		-
+			message: "#^Method Drupal\\\\hux_alter_test\\\\HuxAlterTestHooks\\:\\:testAlterMultiListener\\(\\) has parameter \\$context1 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/src/HuxAlterTestHooks.php
+
+		-
+			message: "#^Method Drupal\\\\hux_alter_test\\\\HuxAlterTestHooks\\:\\:testAlterMultiListener\\(\\) has parameter \\$context2 with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/src/HuxAlterTestHooks.php
+
+		-
+			message: "#^Method Drupal\\\\hux_alter_test\\\\HuxAlterTestHooks\\:\\:testAlterMultiListener\\(\\) has parameter \\$data with no type specified\\.$#"
+			count: 1
+			path: tests/modules/hux_alter_test/src/HuxAlterTestHooks.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\hux\\\\Kernel\\\\HuxAlterTest\\:\\:moduleInstaller\\(\\) is unused\\.$#"
+			count: 1
+			path: tests/src/Kernel/HuxAlterTest.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\hux\\\\Kernel\\\\HuxAutoTest\\:\\:register\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: tests/src/Kernel/HuxAutoTest.php
+
+		-
+			message: "#^Method Drupal\\\\Tests\\\\hux\\\\Kernel\\\\HuxTest\\:\\:moduleInstaller\\(\\) is unused\\.$#"
+			count: 1
+			path: tests/src/Kernel/HuxTest.php
+
+		-
+			message: "#^Call to method PHPUnit\\\\Framework\\\\Assert\\:\\:assertInstanceOf\\(\\) with 'Symfony\\\\\\\\Component\\\\\\\\DependencyInjection\\\\\\\\Reference' and Symfony\\\\Component\\\\DependencyInjection\\\\Reference will always evaluate to true\\.$#"
+			count: 1
+			path: tests/src/Unit/HuxCompilerPassUnitTest.php
+

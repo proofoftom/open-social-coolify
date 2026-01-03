@@ -1,0 +1,292 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the group module.
+ */
+
+use Drupal\Core\Entity\EntityLastInstalledSchemaRepositoryInterface;
+use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\group\Entity\GroupRelationship;
+use Drupal\group\Entity\GroupRelationshipType;
+use Drupal\group\Entity\GroupTypeInterface;
+use Drupal\group\PermissionScopeInterface;
+use Drupal\user\RoleInterface;
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function group_update_last_removed() {
+  return 8023;
+}
+
+/**
+ * Install required flexible_permissions contrib module.
+ */
+function group_update_9200() {
+  \Drupal::service('module_installer')->install(['flexible_permissions'], TRUE);
+}
+
+/**
+ * Update class name and handler class names for group_content_type.
+ */
+function group_update_9201() {
+  $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
+
+  // Update the class name and handlers for group_content_type.
+  $new_handlers = \Drupal::entityTypeManager()->getDefinition('group_content_type')->getHandlerClasses();
+  $entity_type = $definition_update_manager->getEntityType('group_content_type');
+  $entity_type->setClass(GroupRelationshipType::class);
+  $entity_type->set('handlers', $new_handlers);
+  $definition_update_manager->updateEntityType($entity_type);
+}
+
+/**
+ * Update class name and handler class names for group_content.
+ */
+function group_update_9202() {
+  $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
+  $last_installed_schema_repository = \Drupal::service('entity.last_installed_schema.repository');
+  assert($last_installed_schema_repository instanceof EntityLastInstalledSchemaRepositoryInterface);
+
+  // Update the class name and handlers for group_content.
+  $new_handlers = \Drupal::entityTypeManager()->getDefinition('group_content')->getHandlerClasses();
+  $entity_type = $definition_update_manager->getEntityType('group_content');
+  $entity_type->setClass(GroupRelationship::class);
+  $entity_type->set('handlers', $new_handlers);
+
+  // Instead of using the entity definition update manager, we immediately write
+  // these changes as they would otherwise trigger a data migration and choke on
+  // the fact that the old storage class no longer exists.
+  $last_installed_schema_repository->setLastInstalledDefinition($entity_type);
+}
+
+/**
+ * Update group_content DB table, fields and indexes.
+ */
+function group_update_9203(&$sandbox) {
+  $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
+  $last_installed_schema_repository = \Drupal::service('entity.last_installed_schema.repository');
+  assert($last_installed_schema_repository instanceof EntityLastInstalledSchemaRepositoryInterface);
+
+  // Update the database tables.
+  $entity_type = $definition_update_manager->getEntityType('group_content');
+  $entity_type->set('base_table', 'group_relationship');
+  $entity_type->set('data_table', 'group_relationship_field_data');
+
+  // Add the plugin_id and group_type field.
+  $field_storage_definitions = $last_installed_schema_repository->getLastInstalledFieldStorageDefinitions('group_content');
+  $field_storage_definitions['plugin_id'] = BaseFieldDefinition::create('string')
+    ->setName('plugin_id')
+    ->setTargetEntityTypeId('group_content')
+    ->setTargetBundle(NULL)
+    ->setLabel(t('Plugin ID'))
+    ->setRequired(TRUE)
+    ->setReadOnly(TRUE)
+    ->setInitialValue('TEMP')
+    ->setProvider('group');
+
+  $field_storage_definitions['group_type'] = BaseFieldDefinition::create('entity_reference')
+    ->setName('group_type')
+    ->setTargetEntityTypeId('group_content')
+    ->setTargetBundle(NULL)
+    ->setLabel(t('Group type'))
+    ->setSetting('target_type', 'group_type')
+    ->setRequired(TRUE)
+    ->setReadOnly(TRUE)
+    ->setInitialValue('TEMP')
+    ->setProvider('group');
+
+  // Update the fields and regenerate indexes, the correct initial values will
+  // be retrieved from GroupRelationshipStorage::restore().
+  $definition_update_manager->updateFieldableEntityType($entity_type, $field_storage_definitions, $sandbox);
+}
+
+/**
+ * Remove the 'bypass group access' permission from all roles.
+ */
+function group_update_9204() {
+  $config_factory = \Drupal::configFactory();
+  foreach ($config_factory->listAll('user.role.') as $config_name) {
+    $role = $config_factory->getEditable($config_name);
+    $role->set('permissions', array_values(array_diff($role->get('permissions'), ['bypass group access'])));
+    $role->save(TRUE);
+  }
+}
+
+/**
+ * Convert group roles with the 'administer group' permission to admin roles.
+ */
+function group_update_9205() {
+  $config_factory = \Drupal::configFactory();
+  foreach ($config_factory->listAll('group.role.') as $config_name) {
+    $role = $config_factory->getEditable($config_name);
+    if (in_array('administer group', $role->get('permissions'), TRUE)) {
+      $role->set('permissions', []);
+      $role->set('admin', TRUE);
+    }
+    else {
+      $role->set('admin', FALSE);
+    }
+    $role->save(TRUE);
+  }
+}
+
+/**
+ * Convert synchronized group roles to new scope and target_role structure.
+ */
+function group_update_9206() {
+  $config_factory = \Drupal::configFactory();
+
+  $synchronized_role_ids = [];
+  foreach ($config_factory->listAll('user.role.') as $role_config_name) {
+    $role_id = $config_factory->get($role_config_name)->get('id');
+
+    // We never synced any roles to anonymous or authenticated.
+    if ($role_id === RoleInterface::ANONYMOUS_ID || $role_id === RoleInterface::AUTHENTICATED_ID) {
+      continue;
+    }
+
+    $synchronized_role_ids[] = $role_id;
+  }
+
+  // Nothing to update if we had no user defined global roles.
+  if (empty($synchronized_role_ids)) {
+    return;
+  }
+
+  foreach ($config_factory->listAll('group.type.') as $group_type_config_name) {
+    $group_type_id = $config_factory->get($group_type_config_name)->get('id');
+
+    foreach ($synchronized_role_ids as $role_id) {
+      // Copied the group role ID logic directly from the GroupRoleSynchronizer
+      // class because that class has been removed in favor of the new roles.
+      $machine_name_max_length = EntityTypeInterface::ID_MAX_LENGTH - GroupTypeInterface::ID_MAX_LENGTH - 1;
+      $machine_name = substr(md5('group_role_sync.' . $role_id), 0, $machine_name_max_length);
+      $group_role_id = "$group_type_id-$machine_name";
+
+      // Delete the synchronized role if they had no rights.
+      $group_role = $config_factory->getEditable('group.role.' . $group_role_id);
+      if (!$group_role->get('admin') && empty($group_role->get('permissions'))) {
+        $group_role->delete();
+      }
+      // Otherwise update the group role to use the new keys.
+      else {
+        $group_role->set('scope', PermissionScopeInterface::OUTSIDER_ID);
+        $group_role->set('global_role', $role_id);
+
+        // Clear the old keys and save.
+        $group_role->clear('permissions_ui');
+        $group_role->clear('internal');
+        $group_role->clear('audience');
+        $group_role->save(TRUE);
+      }
+    }
+  }
+}
+
+/**
+ * Convert default group roles to new scope and target_role structure.
+ */
+function group_update_9207() {
+  $config_factory = \Drupal::configFactory();
+
+  $group_role_info = [
+    'anonymous' => [
+      'scope' => PermissionScopeInterface::OUTSIDER_ID,
+      'global_role' => RoleInterface::ANONYMOUS_ID,
+    ],
+    'outsider' => [
+      'scope' => PermissionScopeInterface::OUTSIDER_ID,
+      'global_role' => RoleInterface::AUTHENTICATED_ID,
+    ],
+    'member' => [
+      'scope' => PermissionScopeInterface::INSIDER_ID,
+      'global_role' => RoleInterface::AUTHENTICATED_ID,
+    ],
+  ];
+
+  // Update anonymous, outsider and member.
+  foreach ($config_factory->listAll('group.type.') as $group_type_config_name) {
+    $group_type_id = $config_factory->get($group_type_config_name)->get('id');
+
+    foreach ($group_role_info as $group_role_suffix => $info) {
+      $group_role_id = "$group_type_id-$group_role_suffix";
+
+      // We do not delete the default roles, even if they have no rights.
+      $group_role = $config_factory->getEditable('group.role.' . $group_role_id);
+      $group_role->set('scope', $info['scope']);
+      $group_role->set('global_role', $info['global_role']);
+
+      // Clear the old keys and save.
+      $group_role->clear('permissions_ui');
+      $group_role->clear('internal');
+      $group_role->clear('audience');
+      $group_role->save(TRUE);
+    }
+  }
+}
+
+/**
+ * Convert user created group roles to new scope and target_role structure.
+ */
+function group_update_9208() {
+  $config_factory = \Drupal::configFactory();
+
+  foreach ($config_factory->listAll('group.role.') as $config_name) {
+    // Now that we've updated synchronized and default roles, any role that
+    // still has the old properties is a user generated one. So skip the rest.
+    if (empty($config_factory->get($config_name)->get('audience'))) {
+      continue;
+    }
+
+    // We do not delete the user created roles, even if they have no rights.
+    $group_role = $config_factory->getEditable($config_name);
+    $group_role->set('scope', PermissionScopeInterface::INDIVIDUAL_ID);
+
+    // Clear the old keys and save.
+    $group_role->clear('permissions_ui');
+    $group_role->clear('internal');
+    $group_role->clear('audience');
+    $group_role->save(TRUE);
+  }
+}
+
+/**
+ * Remove label and description from relationship types.
+ */
+function group_update_9209() {
+  $config_factory = \Drupal::configFactory();
+
+  foreach ($config_factory->listAll('group.content_type.') as $config_name) {
+    $relationship_type = $config_factory->getEditable($config_name);
+    $relationship_type->clear('label');
+    $relationship_type->clear('description');
+    $relationship_type->save(TRUE);
+  }
+}
+
+/**
+ * Introduce the group_config_wrapper entity type.
+ */
+function group_update_9210() {
+  $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
+  if (!$definition_update_manager->getEntityType('group_config_wrapper')) {
+    $entity_type = \Drupal::entityTypeManager()->getDefinition('group_config_wrapper');
+    $definition_update_manager->installEntityType($entity_type);
+  }
+}
+
+/**
+ * Updates views to drop obsolete key.
+ */
+function group_update_9211(&$sandbox) {
+  if (\Drupal::moduleHandler()->moduleExists('views')) {
+    $view = \Drupal::configFactory()->getEditable('views.view.group_members');
+    if (!$view->isNew()) {
+      $view->clear('display.default.display_options.arguments.gid.default_argument_skip_url');
+      $view->save(TRUE);
+    }
+  }
+}

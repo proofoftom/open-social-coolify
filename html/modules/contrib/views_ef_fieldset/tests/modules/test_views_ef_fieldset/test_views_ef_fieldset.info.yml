@@ -1,0 +1,14 @@
+name: 'Views Exposed Form Fieldset tests'
+description: 'Support module to test Views Exposed Form Fieldset.'
+core_version_requirement: ^10 || ^11
+type: module
+package: Testing
+dependencies:
+  - drupal:node
+  - drupal:user
+  - views_ef_fieldset:views_ef_fieldset
+
+# Information added by Drupal.org packaging script on 2024-11-08
+version: '8.x-1.10'
+project: 'views_ef_fieldset'
+datestamp: 1731071554

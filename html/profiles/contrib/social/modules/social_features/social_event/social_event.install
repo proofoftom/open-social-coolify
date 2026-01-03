@@ -1,0 +1,308 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_event module.
+ */
+
+use Drupal\field\Entity\FieldConfig;
+use Drupal\menu_link_content\Entity\MenuLinkContent;
+use Drupal\user\RoleInterface;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_event.
+ */
+function social_event_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::ANONYMOUS_ID,
+    [
+      'view node.event.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'view node.event.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'create event content',
+      'delete own event content',
+      'edit own event content',
+      'override event published option',
+      'view node.event.field_content_visibility:community content',
+      'view events on my profile',
+      'view events on other profiles',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'create event content',
+      'delete own event content',
+      'edit own event content',
+      'override event published option',
+      'view node.event.field_content_visibility:community content',
+      'view events on my profile',
+      'view events on other profiles',
+      'delete any event content',
+      'edit any event content',
+      'revert event revisions',
+      'delete event revisions',
+      'view event revisions',
+      'override event authored by option',
+      'override event authored on option',
+      'override event promote to front page option',
+      'override event revision option',
+      'override event sticky option',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'create event content',
+      'delete own event content',
+      'edit own event content',
+      'override event published option',
+      'view node.event.field_content_visibility:community content',
+      'view events on my profile',
+      'view events on other profiles',
+      'delete any event content',
+      'edit any event content',
+      'revert event revisions',
+      'delete event revisions',
+      'view event revisions',
+      'override event authored by option',
+      'override event authored on option',
+      'override event promote to front page option',
+      'override event revision option',
+      'override event sticky option',
+      'administer visibility settings',
+      'administer social_event settings',
+      'view published event enrollment entities',
+    ]
+  );
+  // Add menu links.
+  $parents = \Drupal::entityTypeManager()->getStorage('menu_link_content')
+    ->loadByProperties(['menu_name' => 'main', 'title' => 'Explore', 'expanded' => TRUE]);
+  $parent = reset($parents);
+  if ($parent !== FALSE) {
+    MenuLinkContent::create([
+      'title' => t('All events'),
+      'link' => ['uri' => 'internal:/community-events'],
+      'menu_name' => 'main',
+      'expanded' => FALSE,
+      'weight' => 30,
+      'parent' => 'menu_link_content:' . $parent->uuid(),
+    ])->save();
+  }
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_event_update_dependencies(): array {
+  // Ensure configurations updates runs after the group migration has completed,
+  // but before the group types are removed.
+  $dependencies['social_event'][130000] = [
+    'social_group' => 13000,
+  ];
+  $dependencies['social_group'][13001] = [
+    'social_event' => 130000,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_event_update_last_removed() : int {
+  return 111102;
+}
+
+/**
+ * Change the More Link from Event Enrollments view.
+ */
+function social_event_update_121001(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_event', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Change the event enrollments view header to a token.
+ */
+function social_event_update_121002(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_event', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Re-run: Change the More Link from Event Enrollments view.
+ *
+ * Due to an issue with expected config vs actual config
+ * having translated strings in it.
+ */
+function social_event_update_121003(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_event', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Re-run: Change the event enrollments view header to a token.
+ *
+ * Due to an issue with expected config vs actual config
+ * having translated strings in it.
+ */
+function social_event_update_121004(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_event', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_event_update_130000(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_event', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Ensure the sidebar block "Upcoming events" will be displayed on all groups.
+ */
+function social_event_update_130001(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_event', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Set the end date of the event required.
+ */
+function social_event_update_130002(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_event', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Update upcoming_events_group views config to use a correct table.
+ */
+function social_event_update_130003() : string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_event', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Update default location from system configuration to event.
+ */
+function social_event_update_130004(): void {
+  $default_country = \Drupal::config('system.date')->get('country.default');
+  $event_address_field = FieldConfig::loadByName('node', 'event', 'field_event_address');
+  if (empty($event_address_field)) {
+    return;
+  }
+
+  // Init and fill default values variable.
+  $default_values = [];
+  if (!empty($default_country)) {
+    $default_values = $event_address_field->getDefaultValueLiteral();
+    // When the default values isn't initiated, so init it.
+    if (empty($default_values)) {
+      $default_values[] = [
+        'langcode' => NULL,
+        'administrative_area' => "",
+        'locality' => "",
+        'dependent_locality' => NULL,
+        'postal_code' => "",
+        'sorting_code' => NULL,
+        'address_line1' => "",
+        'address_line2' => NULL,
+        'address_line3' => NULL,
+        'organization' => NULL,
+        'given_name' => NULL,
+        'additional_name' => NULL,
+        'family_name' => NULL,
+      ];
+
+    }
+
+    // Add country code from site default country.
+    $default_values[0]['country_code'] = $default_country;
+  }
+
+  // Save field with new default value.
+  if (method_exists($event_address_field, 'setDefaultValue')) {
+    $event_address_field->setDefaultValue($default_values)
+      ->save();
+  }
+}
+
+/**
+ * Remove redundant "node_access" views filter.
+ */
+function social_event_update_130005(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+  $updater->executeUpdate('social_event', __FUNCTION__);
+  return $updater->logger()->output();
+}

@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_featured_items module.
+ */
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_featured_items_update_last_removed() : int {
+  return 10300;
+}

@@ -1,0 +1,8 @@
+services:
+  # \Drupal\hux_auto_test\Hooks\HuxAutoconfigure needs a logger to inject.
+  # https://www.drupal.org/node/3395436
+  logger.channel.hux_auto_test:
+    parent: logger.channel_base
+    arguments:
+      $channel: 'hux_auto_test'
+ 

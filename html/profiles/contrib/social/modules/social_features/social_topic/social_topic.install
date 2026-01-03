@@ -1,0 +1,293 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_topic module.
+ */
+
+use Drupal\taxonomy\Entity\Term;
+use Drupal\menu_link_content\Entity\MenuLinkContent;
+use Drupal\user\RoleInterface;
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_topic.
+ */
+function social_topic_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    RoleInterface::ANONYMOUS_ID,
+    [
+      'view node.topic.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    RoleInterface::AUTHENTICATED_ID,
+    [
+      'view node.topic.field_content_visibility:public content',
+    ]
+  );
+  user_role_grant_permissions(
+    'verified',
+    [
+      'create topic content',
+      'delete own topic content',
+      'edit own topic content',
+      'override topic published option',
+      'view node.topic.field_content_visibility:community content',
+      'view topics on my profile',
+      'view topics on other profiles',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'create topic content',
+      'delete own topic content',
+      'edit own topic content',
+      'override topic published option',
+      'view node.topic.field_content_visibility:community content',
+      'view topics on my profile',
+      'view topics on other profiles',
+      'delete any topic content',
+      'edit any topic content',
+      'revert topic revisions',
+      'delete topic revisions',
+      'view topic revisions',
+      'override topic authored by option',
+      'override topic authored on option',
+      'override topic promote to front page option',
+      'override topic revision option',
+      'override topic sticky option',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'create topic content',
+      'delete own topic content',
+      'edit own topic content',
+      'override topic published option',
+      'view node.topic.field_content_visibility:community content',
+      'view topics on my profile',
+      'view topics on other profiles',
+      'delete any topic content',
+      'edit any topic content',
+      'revert topic revisions',
+      'delete topic revisions',
+      'view topic revisions',
+      'override topic authored by option',
+      'override topic authored on option',
+      'override topic promote to front page option',
+      'override topic revision option',
+      'override topic sticky option',
+      'administer visibility settings',
+      'administer social_topic settings',
+    ]
+  );
+  // Add some links.
+  $parents = \Drupal::entityTypeManager()->getStorage('menu_link_content')
+    ->loadByProperties(['menu_name' => 'main', 'title' => 'Explore', 'expanded' => TRUE]);
+  $parent = reset($parents);
+  if ($parent !== FALSE) {
+    MenuLinkContent::create([
+      'title' => t('All topics'),
+      'link' => ['uri' => 'internal:/all-topics'],
+      'menu_name' => 'main',
+      'expanded' => FALSE,
+      'weight' => 40,
+      'parent' => 'menu_link_content:' . $parent->uuid(),
+    ])->save();
+  }
+
+  // Create some default taxonomy terms.
+  $terms = [
+    [
+      'label' => t('Blog'),
+      'icon' => 'icon-blog',
+    ],
+    [
+      'label' => t('Content'),
+      'icon' => 'icon-page',
+    ],
+    [
+      'label' => t('Dialog'),
+      'icon' => 'icon-discussion',
+    ],
+    [
+      'label' => t('News'),
+      'icon' => 'icon-news',
+    ],
+  ];
+
+  foreach ($terms as $term) {
+    $term = Term::create([
+      'vid' => 'topic_types',
+      'name' => $term['label'],
+      'field_topic_type_icon' => $term['icon'],
+    ]);
+    $term->save();
+  }
+}
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function social_topic_update_dependencies(): array {
+  // Ensure configurations updates runs after the group migration has completed,
+  // but before the group types are removed.
+  $dependencies['social_topic'][130000] = [
+    'social_group' => 13000,
+  ];
+  $dependencies['social_group'][13001] = [
+    'social_topic' => 130000,
+  ];
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_topic_update_last_removed() : int {
+  return 111102;
+}
+
+/**
+ * Add sort identifier to exposed sorts.
+ */
+function social_topic_update_120001(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_topic', 'social_topic_update_120001');
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Add taxonomy permission with the Taxonomy Access Fix is enabled.
+ */
+function social_topic_update_120002(): void {
+  // Nothing to do if the module is not installed.
+  if (!\Drupal::moduleHandler()->moduleExists('taxonomy_access_fix')) {
+    return;
+  }
+
+  // Permission to grant.
+  $taxonomy_permissions = [
+    'view terms in topic_types',
+    'view term names in topic_types',
+    'select terms in topic_types',
+  ];
+
+  // Load the permission.
+  $entity_type_manager = \Drupal::entityTypeManager();
+  /** @var \Drupal\user\RoleInterface $role */
+  $role = $entity_type_manager->getStorage('user_role')->load('authenticated');
+
+  // If the role is not have the permission, grant permission.
+  $roleUpdated = FALSE;
+  foreach ($taxonomy_permissions as $taxonomy_permission) {
+    if (!$role->hasPermission($taxonomy_permission)) {
+      $role->grantPermission($taxonomy_permission);
+      $roleUpdated = TRUE;
+    }
+  }
+
+  if ($roleUpdated) {
+    $role->save();
+  }
+}
+
+/**
+ * Remove deprecated group types.
+ */
+function social_topic_update_130000(): ?string {
+  // Allow platforms to opt out of the group migration, for example if they want
+  // to build it themselves and take more scenario's into account than common
+  // Open Social installations will have.
+  if (\Drupal::state()->get('social_group_group_type_migration_opt_out', FALSE)) {
+    \Drupal::logger('social_group')->info('Platform has opted out of group migration.');
+    return NULL;
+  }
+
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_topic', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Ensure the sidebar block "Newest topics" will be displayed on all groups.
+ */
+function social_topic_update_130001(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updater->executeUpdate('social_topic', __FUNCTION__);
+
+  // Output logged messages to related channel of update execution.
+  return $updater->logger()->output();
+}
+
+/**
+ * Replace table name in group_members views.
+ */
+function social_topic_update_130002(): string {
+  /** @var \Drupal\update_helper\Updater $updateHelper */
+  $updateHelper = \Drupal::service('update_helper.updater');
+
+  // Execute configuration update definitions with logging of success.
+  $updateHelper->executeUpdate('social_topic', __FUNCTION__);
+
+  // Output logged messages to a related channel of update execution.
+  return $updateHelper->logger()->output();
+}
+
+/**
+ * Hidden path from Topic Type taxonomy.
+ */
+function social_topic_update_130003(): void {
+  $storage = \Drupal::entityTypeManager()->getStorage('entity_form_display');
+  $form_display = $storage->load('taxonomy_term.topic_types.default');
+
+  // If the entity-form-display isn't found, return early.
+  if (empty($form_display)) {
+    \Drupal::logger('social_topic')->info('The entity-form-display from Topic Types taxonomy is empty.');
+    return;
+  }
+
+  // Get fields and check if path is already be hidden.
+  $hidden = $form_display->get('hidden');
+  $content = $form_display->get('content');
+  if (in_array('path', array_keys($hidden))) {
+    \Drupal::logger('social_topic')->info('The path field already is hidden on Topic Types taxonomy.');
+    return;
+  }
+
+  // Manipulate path field to be hidden and save.
+  $hidden['path'] = TRUE;
+  unset($content['path']);
+  $form_display->set('hidden', $hidden)
+    ->set('content', $content)
+    ->save();
+}
+
+/**
+ * Remove redundant "node_access" views filter.
+ */
+function social_topic_update_130004(): string {
+  /** @var \Drupal\update_helper\Updater $updater */
+  $updater = \Drupal::service('update_helper.updater');
+  $updater->executeUpdate('social_topic', __FUNCTION__);
+  return $updater->logger()->output();
+}

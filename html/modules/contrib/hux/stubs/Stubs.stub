@@ -1,0 +1,42 @@
+<?php
+
+namespace Drupal\Core\TypedData {
+
+  class DataDefinition {
+
+    /**
+     * @phpstan-param string|\Drupal\Core\StringTranslation\TranslatableMarkup $label
+     * @return $this
+     */
+    public function setLabel($label) {}
+
+    /**
+     * @phpstan-param string|\Drupal\Core\StringTranslation\TranslatableMarkup $description
+     * @return $this
+     */
+    public function setDescription($description) {    }
+
+  }
+
+}
+
+namespace Drupal\Core\StringTranslation {
+
+  class TranslatableMarkup {
+
+  }
+
+}
+
+namespace Drupal\Core\Entity {
+
+  interface RevisionableStorageInterface {
+
+    /**
+     * @param string|int $revision_id
+     */
+    public function loadRevision($revision_id);
+
+  }
+
+}

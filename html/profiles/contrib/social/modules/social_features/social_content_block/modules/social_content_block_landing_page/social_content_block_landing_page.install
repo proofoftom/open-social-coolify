@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * @file
+ * Installation code for the social_content_block_landing_page module.
+ */
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_content_block_landing_page_update_last_removed() : int {
+  return 11001;
+}

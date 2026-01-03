@@ -1,0 +1,13 @@
+name: 'Group Node'
+description: 'Enables Group functionality for the Node module'
+package: 'Group'
+type: 'module'
+core_version_requirement: ^10.3 || ^11
+dependencies:
+  - 'drupal:node'
+  - 'group:group'
+
+# Information added by Drupal.org packaging script on 2024-11-21
+version: '2.3.1'
+project: 'group'
+datestamp: 1732200050

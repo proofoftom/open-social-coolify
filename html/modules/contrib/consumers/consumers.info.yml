@@ -1,0 +1,16 @@
+name: Consumers
+type: module
+description: 'Declare all the consumers of your API'
+core_version_requirement: ^9.5 || ^10 || ^11
+package: Authentication
+php: 8.0
+configure: entity.consumer.collection
+container_rebuild_required: true
+dependencies:
+  - drupal:system
+  - drupal:image
+
+# Information added by Drupal.org packaging script on 2025-11-28
+version: '8.x-1.22'
+project: 'consumers'
+datestamp: 1764310068

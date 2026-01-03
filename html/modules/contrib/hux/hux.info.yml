@@ -1,0 +1,11 @@
+name: Hux
+type: module
+description: New hooks
+core_version_requirement: '^10.3 || ~11.0'
+php: 8.1
+package: System
+
+# Information added by Drupal.org packaging script on 2024-08-14
+version: '1.6.0'
+project: 'hux'
+datestamp: 1723627558

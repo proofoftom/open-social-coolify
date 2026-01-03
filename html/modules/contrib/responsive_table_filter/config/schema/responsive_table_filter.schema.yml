@@ -1,0 +1,10 @@
+filter_settings.filter_responsive_table:
+  type: filter
+  label: 'Responsive Table Filter'
+  mapping:
+    wrapper_element:
+      type: string
+      label: 'The element to wrap the responsive table (e.g. figure)'
+    wrapper_classes:
+      type: string
+      label: 'Any wrapper class(es) separated by spaces (e.g. responsive-figure-table)'

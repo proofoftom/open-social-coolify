@@ -1,0 +1,15 @@
+views.view.user_event_invites:
+  expected_config:
+    display:
+      default:
+        display_options:
+          access:
+            type: none
+  update_actions:
+    change:
+      display:
+        default:
+          display_options:
+            type: perm
+            options:
+              perm: 'access user profiles'

@@ -1,0 +1,231 @@
+<?php
+
+/**
+ * @file
+ * Installation file for Social Tagging.
+ */
+
+use Drupal\Core\Entity\EntityStorageException;
+use Drupal\search_api\Item\Field;
+use Drupal\taxonomy\Entity\Term;
+use Drupal\taxonomy\TermInterface;
+
+/**
+ * Install the module.
+ */
+function social_tagging_install(): void {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'administer social_tagging',
+      'delete terms in social_tagging',
+      'edit terms in social_tagging',
+      'create terms in social_tagging',
+    ]
+  );
+
+  // Add the new search api fields.
+  _social_tagging_add_fields_search_api();
+
+  // If the search module is enabled trigger updating of the indexes affected
+  // by tagging.
+  try {
+    if (\Drupal::moduleHandler()->moduleExists('social_search')) {
+      social_search_resave_search_indexes(['social_content', 'social_groups']);
+    }
+  }
+  catch (EntityStorageException $e) {
+    \Drupal::logger('social_tagging')->info($e->getMessage());
+  }
+}
+
+/**
+ * Uninstall the module.
+ */
+function social_tagging_uninstall(): void {
+  // Remove the search api fields.
+  _social_tagging_remove_fields_search_api();
+
+  try {
+    if (\Drupal::moduleHandler()->moduleExists('social_search')) {
+      social_search_resave_search_indexes(['social_content', 'social_groups']);
+    }
+  }
+  catch (EntityStorageException $e) {
+    \Drupal::logger('social_tagging')->info($e->getMessage());
+  }
+}
+
+/**
+ * Add fields to search API.
+ */
+function _social_tagging_search_api_fields(): array {
+  return [
+    'social_content' => 'node',
+    'social_groups' => 'group',
+    'social_users' => 'profile',
+  ];
+}
+
+/**
+ * Install a base field for an entity type.
+ *
+ * @param string $entity_type
+ *   The entity type identifier.
+ */
+function _social_tagging_add_base_field(string $entity_type): void {
+  \Drupal::entityDefinitionUpdateManager()->installFieldStorageDefinition(
+    'social_tagging',
+    $entity_type,
+    'social_tagging',
+    _social_tagging_field(),
+  );
+}
+
+/**
+ * Add fields to search API.
+ */
+function _social_tagging_add_fields_search_api(): void {
+  $fields = _social_tagging_search_api_fields();
+
+  foreach ($fields as $index => $type) {
+    $index_storage = \Drupal::entityTypeManager()
+      ->getStorage('search_api_index');
+
+    /** @var \Drupal\search_api\IndexInterface $index */
+    $index = $index_storage->load($index);
+
+    // Only add the field if it doesn't exist yet.
+    if (!$index->getField('social_tagging')) {
+      $field_intro = new Field($index, 'social_tagging');
+      $field_intro->setType('integer');
+      $field_intro->setPropertyPath('social_tagging');
+      $field_intro->setDatasourceId('entity:' . $type);
+      $field_intro->setLabel('Social Tagging');
+      $index->addField($field_intro);
+
+      $index->save();
+    }
+  }
+}
+
+/**
+ * Remove fields from search API.
+ */
+function _social_tagging_remove_fields_search_api(): void {
+  $fields = _social_tagging_search_api_fields();
+
+  foreach ($fields as $index => $type) {
+    $index_storage = \Drupal::entityTypeManager()
+      ->getStorage('search_api_index');
+
+    /** @var \Drupal\search_api\IndexInterface $index */
+    $index = $index_storage->load($index);
+
+    $index->removeField('social_tagging');
+    $index->save();
+  }
+}
+
+/**
+ * Update the field definitions on install, or in an update hook.
+ *
+ * @param string $field
+ *   The field definition you want to update.
+ */
+function _social_profile_field_definitions_update(string $field): void {
+  // Update definitions and schema.
+  $list = \Drupal::entityDefinitionUpdateManager()->getChangeList();
+  if (!empty($list[$field])) {
+    foreach ($list[$field] as $item) {
+      \Drupal::entityDefinitionUpdateManager()->updateEntityType($item);
+    }
+  }
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_tagging_update_last_removed() : int {
+  return 11804;
+}
+
+/**
+ * Grant permissions for SM to create terms in social_tagging vocabulary.
+ */
+function social_tagging_update_130001(): void {
+  user_role_grant_permissions('sitemanager', ['create terms in social_tagging']);
+}
+
+/**
+ * Update "Social Tagging" configs.
+ */
+function social_tagging_update_130002(): void {
+  $config_factory = \Drupal::configFactory();
+  $social_tagging_config = $config_factory->getEditable('social_tagging.settings');
+  $tag_type_group = $social_tagging_config->get('tag_type_group');
+  // Set 'tag_type_group' key value to new key 'tag_group_type_flexible_group'.
+  $social_tagging_config->set('tag_group_type_flexible_group', $tag_type_group);
+  // Delete old key.
+  $social_tagging_config->clear('tag_type_group');
+  $social_tagging_config->save(TRUE);
+}
+
+/**
+ * Update existed "Content tags" settings.
+ */
+function social_tagging_update_130003(array &$sandbox): void {
+  $query = \Drupal::entityQuery('taxonomy_term')
+    ->accessCheck(FALSE)
+    ->condition('vid', 'social_tagging')
+    ->condition('parent', 0);
+
+  if (!isset($sandbox['total'])) {
+    $tids = $query->execute();
+    $sandbox['total'] = count($tids);
+    $sandbox['current'] = 0;
+
+    if (empty($sandbox['total'])) {
+      $sandbox['#finished'] = 1;
+      return;
+    }
+  }
+
+  $terms_per_batch = 25;
+  $tids = $query
+    ->range($sandbox['current'], $terms_per_batch)
+    ->execute();
+
+  if (empty($tids)) {
+    $sandbox['#finished'] = 1;
+    return;
+  }
+
+  foreach ($tids as $tid) {
+    $term = Term::load($tid);
+    if ($term instanceof TermInterface && !$term->get('field_category_usage')->isEmpty()) {
+      $settings = unserialize($term->get('field_category_usage')->value);
+      // If term has a "Group" placement setting we need to change it on group
+      // bundle placement setting, by default it is "Flexible group" bundle.
+      if (is_array($settings) && in_array('group', $settings)) {
+        $settings = array_filter($settings, function ($value) {
+          return $value != 'group';
+        });
+
+        $settings[] = 'group_flexible_group';
+
+        $term->set('field_category_usage', serialize($settings));
+        $term->save();
+      }
+    }
+    $sandbox['current']++;
+  }
+
+  if ($sandbox['current'] >= $sandbox['total']) {
+    $sandbox['#finished'] = 1;
+  }
+  else {
+    $sandbox['#finished'] = ($sandbox['current'] / $sandbox['total']);
+  }
+}

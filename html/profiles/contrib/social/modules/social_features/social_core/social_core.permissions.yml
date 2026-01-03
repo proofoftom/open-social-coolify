@@ -1,0 +1,47 @@
+access social_core dashboard:
+  title: 'Access administration dashboard'
+  description: 'Allows access to the administration dashboard.'
+
+bypass social_core menu links access:
+  title: 'Access all Open Social menu links.'
+  description: 'Allows access to all Open Social menu links.'
+
+view debug information:
+  title: 'View debug information'
+  description: 'Show debug information in Open Social modules. Intended for developers only.'
+  restrict access: true
+
+access social theme settings:
+  title: 'Access Open Social theme settings'
+  description: 'Allows access to change colors and appearance.'
+
+administer social site configuration:
+  title: 'Access Open Social site information settings'
+  description: 'Open Socials replacement for the administer site configuration permission.'
+
+administer social menu links:
+  title: 'Access Open Social menu items'
+  description: 'Allows access to change menu items.'
+
+use select2 autocomplete:
+  title: 'Access select2 autocomplete routes'
+  description: 'Allows users to access the select2 autocomplete routes'
+
+create terms in expertise:
+  title: 'Create terms in expertise'
+delete terms in expertise:
+  title: 'Delete terms in expertise'
+edit terms in expertise:
+  title: 'Edit terms in expertise'
+create terms in interests:
+  title: 'Create terms in interests'
+delete terms in interests:
+  title: 'Delete terms in interests'
+edit terms in interests:
+  title: 'Edit terms in interests'
+create terms in topic_types:
+  title: 'Create terms in topic_types'
+delete terms in topic_types:
+  title: 'Delete terms in topic_types'
+edit terms in topic_types:
+  title: 'Edit terms in topic_types'

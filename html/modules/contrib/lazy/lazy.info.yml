@@ -1,0 +1,14 @@
+name: 'Lazy-load'
+type: module
+description: 'This module enables lazy-loading images and iframes via text-filters and image-fields. Requires lazysizes library.'
+core_version_requirement: ^10 || ^11
+package: 'Input filters'
+configure: lazy.config_form
+dependencies:
+  - drupal:filter
+  - drupal:system
+
+# Information added by Drupal.org packaging script on 2024-07-07
+version: '4.0.2'
+project: 'lazy'
+datestamp: 1720363938

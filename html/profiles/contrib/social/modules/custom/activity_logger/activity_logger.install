@@ -1,0 +1,13 @@
+<?php
+
+/**
+ * @file
+ * Installation code for the activity_logger module.
+ */
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function activity_logger_update_last_removed() : int {
+  return 11002;
+}

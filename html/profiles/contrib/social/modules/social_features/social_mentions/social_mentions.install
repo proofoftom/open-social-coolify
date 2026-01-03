@@ -1,0 +1,68 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_mentions module.
+ */
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions related to the installation of social_mentions.
+ */
+function social_mentions_install() {
+  // Grant the default permissions for this feature.
+  user_role_grant_permissions(
+    'verified',
+    [
+      'access mentions',
+    ]
+  );
+  user_role_grant_permissions(
+    'contentmanager',
+    [
+      'access mentions',
+    ]
+  );
+  user_role_grant_permissions(
+    'sitemanager',
+    [
+      'access mentions',
+    ]
+  );
+  // Set default configurations.
+  _social_mentions_set_default_config();
+}
+
+/**
+ * Set default settings.
+ */
+function _social_mentions_set_default_config() {
+  $config = \Drupal::configFactory()->getEditable('mentions.settings');
+
+  $allowed_entity_types = ['post', 'comment'];
+  $allowed_entity_types = array_combine($allowed_entity_types, $allowed_entity_types);
+  $config->set('supported_entity_types', $allowed_entity_types);
+
+  $config->set('suggestions_format', SOCIAL_PROFILE_SUGGESTIONS_ALL);
+
+  $config->set('suggestions_amount', 8);
+
+  $config->save();
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_mentions_update_last_removed() : int {
+  return 11001;
+}
+
+/**
+ * Enable the jquery_ui_autocomplete module.
+ */
+function social_mentions_update_12001(): void {
+  if (!\Drupal::service('module_handler')->moduleExists('jquery_ui_autocomplete')) {
+    \Drupal::service('module_installer')->install(['jquery_ui_autocomplete']);
+  }
+}

@@ -1,0 +1,20 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.activity.field_activity_entity
+  module:
+    - activity_creator
+    - dynamic_entity_reference
+id: activity.activity.field_activity_entity
+field_name: field_activity_entity
+entity_type: activity
+bundle: activity
+label: Entity
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: dynamic_entity_reference

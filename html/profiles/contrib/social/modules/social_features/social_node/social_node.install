@@ -1,0 +1,152 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the social_node module.
+ */
+
+use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
+use Drupal\Component\Plugin\Exception\PluginNotFoundException;
+use Drupal\Core\Entity\EntityStorageException;
+use Drupal\search_api\SearchApiException;
+
+/**
+ * Implements hook_install().
+ */
+function social_node_install(): void {
+  // Set the view mode to use when shown in activities.
+  activity_creator_set_entity_view_mode('node', 'activity');
+  // Grant CM+ to bypass node access check.
+  user_role_grant_permissions(
+    'contentmanager',
+    ['bypass node access']
+  );
+
+  user_role_grant_permissions(
+    'sitemanager',
+    ['bypass node access']
+  );
+
+  // We need to reindex all search api indexes with nodes as a data source
+  // to make sure the new search processor "social_node_query_alter"
+  // is applied.
+  if (function_exists('social_search_resave_data_source_search_indexes')) {
+    social_search_resave_data_source_search_indexes(['node']);
+  }
+}
+
+/**
+ * Implements hook_requirements().
+ */
+function social_node_requirements(string $phase): array {
+  // Make sure there are no "hook_node_grands()" implementations.
+  // If at least one exists, a node entity query will be broken.
+  if ($phase === 'runtime') {
+    $hooks_exist = \Drupal::moduleHandler()->hasImplementations('node_grants');
+
+    $requirements['unwanted_node_grands']['title'] = t('"hook_node_grands()" absence');
+    if ($hooks_exist) {
+      $requirements['unwanted_node_grands']['value'] = t('"hook_node_grands()" implementations exist');
+      $requirements['unwanted_node_grands']['description'] = t('This hook implementations break your node entity queries. You should remove remove them and implement event subscriber with query altering instead (see "\Drupal\social_node\SocialNodeQueryAccessAlterInterface")');
+      $requirements['unwanted_node_grands']['severity'] = REQUIREMENT_ERROR;
+    }
+    else {
+      $requirements['unwanted_node_grands']['value'] = t('"hook_node_grands()" implementations does not exist');
+      $requirements['unwanted_node_grands']['severity'] = REQUIREMENT_OK;
+    }
+  }
+
+  return $requirements ?? [];
+}
+
+/**
+ * Implements hook_update_last_removed().
+ */
+function social_node_update_last_removed() : int {
+  return 11901;
+}
+
+/**
+ * Grant CM+ permissions to bypass node access check.
+ *
+ * @throws \Exception
+ */
+function social_node_update_13000(): void {
+  user_role_grant_permissions(
+    'contentmanager',
+    ['bypass node access']
+  );
+
+  user_role_grant_permissions(
+    'sitemanager',
+    ['bypass node access']
+  );
+
+  // Truncate "node_access" table as we won't use it anymore.
+  \Drupal::database()->truncate('node_access')->execute();
+
+  // Add new processors to search api indexes with node types.
+  try {
+    if (\Drupal::moduleHandler()->moduleExists('social_search')) {
+      /** @var \Drupal\search_api\IndexInterface[] $indexes */
+      $indexes = \Drupal::entityTypeManager()
+        ->getStorage('search_api_index')
+        ->loadMultiple();
+
+      foreach ($indexes as $index) {
+        if (in_array('node', $index->getEntityTypes())) {
+          // Remove deprecated processors.
+          $index->removeProcessor('content_access');
+          $index->removeProcessor('entity_access_by_field');
+
+          // Remove "node_grants" indexed field.
+          $field_settings = $index->get('field_settings');
+          unset($field_settings['node_grants']);
+          $index->set('field_settings', $field_settings);
+
+          // Save and rebuild index.
+          $index->save();
+        }
+      }
+    }
+  }
+  catch (SearchApiException | InvalidPluginDefinitionException | PluginNotFoundException | EntityStorageException $e) {
+    \Drupal::logger('social_node')->info($e->getMessage());
+  }
+}
+
+/**
+ * Replace "user.node_grants:view" with "user" cache context in views.
+ *
+ * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+ * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+ * @throws \Drupal\Core\Entity\EntityStorageException
+ */
+function social_node_update_13001(): void {
+  /** @var \Drupal\views\ViewEntityInterface[] $views */
+  $views = \Drupal::entityTypeManager()
+    ->getStorage('view')
+    ->loadMultiple();
+
+  foreach ($views as $view) {
+    $displays = $view->get('display');
+
+    foreach ($displays as $id => $display) {
+      if (empty($display['cache_metadata']['contexts'])) {
+        continue;
+      }
+
+      if (in_array('user.node_grants:view', $display['cache_metadata']['contexts'])) {
+        $display['cache_metadata']['contexts'][] = 'user';
+        $display['cache_metadata']['contexts'] = array_diff($display['cache_metadata']['contexts'], ['user.node_grants:view']);
+      }
+
+      $displays[$id] = $display;
+    }
+
+    if ($displays != $view->get('display')) {
+      $view->set('display', $displays);
+      $view->save();
+    }
+  }
+}

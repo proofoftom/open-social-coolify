@@ -1,0 +1,332 @@
+<?php
+
+/**
+ * @file
+ * Primary module hooks for social_group_request module.
+ */
+
+use Drupal\block\Entity\Block;
+use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Entity\EntityStorageException;
+use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Link;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\Url;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\grequest\Plugin\Group\Relation\GroupMembershipRequest;
+use Drupal\group\Entity\GroupMembershipInterface;
+use Drupal\group\Entity\GroupRelationshipTypeInterface;
+use Drupal\group\Entity\GroupRelationshipInterface;
+use Drupal\user\UserInterface;
+use Drupal\views\ViewExecutable;
+use Drupal\message\Entity\Message;
+
+/**
+ * Implements hook_ENTITY_TYPE_insert() for group_content_type.
+ */
+function social_group_request_group_content_type_insert(GroupRelationshipTypeInterface $group_content_type) {
+  if ($group_content_type->getPluginId() === 'group_membership_request') {
+    // Add Message field.
+    FieldConfig::create([
+      'field_storage' => FieldStorageConfig::loadByName('group_content', 'field_grequest_message'),
+      'bundle' => $group_content_type->id(),
+      'label' => t('Message'),
+      'description' => '',
+      'required' => FALSE,
+      'settings' => [],
+      'field_type' => 'string_long',
+    ])->save();
+  }
+}
+
+/**
+ * Implements hook_entity_base_field_info().
+ */
+function social_group_request_entity_base_field_info(EntityTypeInterface $entity_type) {
+  $fields = [];
+
+  if ($entity_type->id() === 'group') {
+    $fields['allow_request'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(t('Allow users to request membership'))
+      ->setRevisionable(TRUE)
+      ->setTranslatable(TRUE)
+      ->setDefaultValue(FALSE)
+      ->setDisplayOptions('form', [
+        'type' => 'boolean_checkbox',
+        'settings' => [
+          'display_label' => TRUE,
+        ],
+        'weight' => 99,
+      ])
+      ->setDisplayConfigurable('form', TRUE);
+  }
+
+  return $fields;
+}
+
+/**
+ * Implements hook_social_group_join_method_usage().
+ */
+function social_group_request_social_group_join_method_usage(): array {
+  return [];
+}
+
+/**
+ * Implements hook_social_group_join_method_info().
+ */
+function social_group_request_social_group_join_method_info(): array {
+  return [
+    'request' => [
+      'title' => t('Request to join'),
+      'description' => t('users can "request to join" this @entity_type_id which
+@entity_type_id managers approve/decline.'),
+      'icon' => 'join_close',
+      'weight' => 15,
+    ],
+  ];
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_insert().
+ */
+function social_group_request_group_content_insert(GroupRelationshipInterface $group_content) {
+  if ($group_content instanceof GroupMembershipInterface) {
+    _social_group_request_approve_request_for_joined_member($group_content);
+  }
+}
+
+/**
+ * Approve the membership request for a user that joined a group.
+ *
+ * This ensures that if a user had an open membership request, but they became a
+ * member of the group through other means than group request approval, the
+ * request still reflects the user was allowed in. This can happen for example
+ * if a user has an open group request but is then added directly by a group
+ * manager.
+ *
+ * @param \Drupal\group\Entity\GroupMembershipInterface $membership
+ *   The membership of the user that was created.
+ */
+function _social_group_request_approve_request_for_joined_member(GroupMembershipInterface $membership) : void {
+  $requestManager = \Drupal::service("grequest.membership_request_manager");
+  $approver_id = \Drupal::currentUser()->id();
+
+  $user = $membership->getEntity();
+  assert($user instanceof UserInterface, "GroupMembership::getEntity() should return a UserInterface instance.");
+  $request = $requestManager->getMembershipRequest($user, $membership->getGroup());
+
+  // If not request exists then there's nothing for us to approve.
+  if ($request === NULL) {
+    return;
+  }
+
+  // If there was a request but it's not actually pending there's nothing to do
+  // (e.g. because a user got added after an approved request).
+  if ($request->get('grequest_status')->value !== GroupMembershipRequest::REQUEST_PENDING) {
+    return;
+  }
+
+  // We use `updateStatus` instead of `approve` because the approve method would
+  // try to add the user to the group again but that has already happened as it
+  // was our trigger.
+  $request->set('grequest_updated_by', $approver_id);
+  $requestManager->updateStatus($request, GroupMembershipRequest::TRANSITION_APPROVE);
+  \Drupal::messenger()->addStatus(t('Membership request approved'));
+
+  try {
+    $request->save();
+  }
+  catch (EntityStorageException $exception) {
+    \Drupal::logger('social_group_request')->error("Exception trying to save a group membership request: @message", ['@message' => $exception->getMessage()]);
+  }
+}
+
+/**
+ * Implements hook_module_implements_alter().
+ */
+function social_group_request_module_implements_alter(&$implementations, $hook) {
+  if ($hook == 'group_content_insert') {
+    // Remove the grequest implementation. The implementation in the grequest
+    // module will delete the request but we want to mark it as approved
+    // instead.
+    // See _social_group_request_approve_request_for_joined_member().
+    if (isset($implementations['grequest'])) {
+      unset($implementations['grequest']);
+    }
+  }
+}
+
+/**
+ * Implements hook_activity_send_email_notifications_alter().
+ */
+function social_group_request_activity_send_email_notifications_alter(array &$items, array $email_message_templates) {
+  if (isset($email_message_templates['request_to_join_a_group'])) {
+    $items['what_manage']['templates'][] = 'request_to_join_a_group';
+  }
+
+  if (isset($email_message_templates['approve_request_join_group'])) {
+    $items['message_to_me']['templates'][] = 'approve_request_join_group';
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function social_group_request_form_alter(array &$form, FormStateInterface $form_state, string $form_id): void {
+  $social_group_types = [
+    'flexible_group',
+    'sc',
+    'cc',
+  ];
+  \Drupal::moduleHandler()->alter('social_group_types', $social_group_types);
+  if (preg_match(
+    '/^group_(' . implode('|', $social_group_types) . ')_(add|edit)_form$/',
+    $form_id,
+  )) {
+    /** @var \Drupal\Core\Entity\EntityFormInterface $form_object */
+    $form_object = $form_state->getFormObject();
+
+    /** @var \Drupal\group\Entity\GroupInterface $group */
+    $group = $form_object->getEntity();
+
+    $group_type = $group->getGroupType();
+    $prohibit = FALSE;
+
+    if ($group_type->hasPlugin('group_membership_request')) {
+      /** @var \Drupal\social_group\JoinManagerInterface $manager */
+      $manager = \Drupal::service('plugin.manager.social_group.join');
+
+      /** @var string $bundle */
+      $bundle = $group_type->id();
+
+      $found = FALSE;
+
+      foreach ($manager->relations() as $relation) {
+        if (
+          $relation['entity_type'] === 'group' &&
+          isset($relation['bundle'], $relation['method']) &&
+          in_array($bundle, (array) $relation['bundle']) &&
+          in_array('request', (array) $relation['method'])
+        ) {
+          $found = TRUE;
+
+          break;
+        }
+      }
+
+      if (!$found) {
+        $prohibit = TRUE;
+      }
+    }
+    else {
+      $prohibit = TRUE;
+    }
+
+    if ($prohibit) {
+      unset($form['allow_request']);
+    }
+  }
+}
+
+/**
+ * Implements hook_preprocess_activity().
+ */
+function social_group_request_preprocess_activity(array &$variables) {
+  /** @var \Drupal\activity_creator\ActivityInterface $activity */
+  $activity = $variables['elements']['#activity'];
+
+  if (!$activity->get('field_activity_message')->isEmpty()) {
+    /** @var Drupal\message\Entity\Message $message */
+    $message = $activity->field_activity_message->entity;
+
+    if ($message instanceof Message && !$message->get('template')->isEmpty()) {
+      switch ($message->template->target_id) {
+        case 'request_to_join_a_group':
+          $activity_entity = $activity->getRelatedEntity();
+          if ($activity_entity instanceof GroupRelationshipInterface) {
+            $variables['full_url'] = Url::fromRoute('view.group_membership_requests.pending', [
+              'group' => $activity_entity->getGroup()->id(),
+            ]);
+          }
+          break;
+
+        case 'approve_request_join_group':
+          $activity_entity = $activity->getRelatedEntity();
+          if ($activity_entity instanceof GroupRelationshipInterface) {
+            $variables['full_url'] = Url::fromRoute('social_group.stream', [
+              'group' => $activity_entity->getGroup()->id(),
+            ]);
+          }
+          break;
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_preprocess_page_title().
+ */
+function social_group_request_preprocess_page_title(&$variables) {
+  if (\Drupal::routeMatch()->getParameter('view_id') !== 'group_membership_requests') {
+    return;
+  }
+
+  /** @var \Drupal\group\Entity\GroupInterface $group */
+  $group = \Drupal::routeMatch()->getParameter('group');
+  if (!$group->getGroupType()->hasPlugin('group_membership_request')) {
+    return;
+  }
+
+  $variables['title'] = t('Membership requests for :group_title', [
+    ':group_title' => $group->label(),
+  ]);
+}
+
+/**
+ * Implements hook_views_pre_view().
+ */
+function social_group_request_views_pre_view(ViewExecutable $view, $display_id, array &$args) {
+  if ($view->id() === 'group_membership_requests') {
+    $options = [
+      'id' => 'area_text_custom',
+      'table' => 'views',
+      'field' => 'area_text_custom',
+      'relationship' => 'none',
+      'group_type' => 'none',
+      'admin_label' => '',
+      'empty' => TRUE,
+      'tokenize' => FALSE,
+      'content' => Link::fromTextAndUrl(t('Back'),
+        Url::fromRoute('entity.group.canonical', ['group' => $args[0]], [
+          'attributes' => [
+            'class' => [
+              'btn',
+              'btn-default',
+            ],
+          ],
+        ]))->toString(),
+      'plugin_id' => 'text_custom',
+    ];
+    $view->setHandler($display_id, 'footer', 'area_text_custom', $options);
+  }
+}
+
+/**
+ * Implements hook_block_access().
+ */
+function social_group_request_block_access(Block $block, $operation, AccountInterface $account) {
+  if ($operation == 'view' && $block->getPluginId() == 'group_hero_block') {
+    $route_name = \Drupal::routeMatch()->getRouteName();
+    $excluded_routes = [
+      'entity.group_content.group_approve_membership',
+      'entity.group_content.group_reject_membership',
+    ];
+
+    if (in_array($route_name, $excluded_routes)) {
+      return AccessResult::forbidden();
+    }
+  }
+}
