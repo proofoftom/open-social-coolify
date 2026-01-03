@@ -103,6 +103,27 @@ SafeTransaction: draft → pending → executed | failed | cancelled
 - `execute group_treasury transactions` - Submit to blockchain
 - `manage group_treasury` - Add/remove/reconnect treasury
 
+### Module Development Workflow
+
+**Important**: Each Web3 module (`siwe_login`, `safe_smart_accounts`, `group_treasury`) is maintained in its own separate Git repository. When making changes to these modules within `open-social-coolify`:
+
+1. **Commit to the module repository**: Changes to module code must be committed and pushed to the module's own repository first
+2. **Update composer.lock**: After pushing module changes, run `composer update drupal/<module_name>` in open-social-coolify to update the lock file
+3. **Commit the lock file**: Push the updated `composer.lock` to open-social-coolify
+
+**For agents working with git worktrees**: After checking out a worktree, run `composer install` to pull the Web3 modules into the project. The modules are installed as Composer dependencies and won't exist in the worktree until installed.
+
+```bash
+# Example workflow for module changes
+cd html/modules/contrib/siwe_login
+git add . && git commit -m "Fix: description" && git push
+
+# Then update open-social-coolify
+cd /path/to/open-social-coolify
+composer update drupal/siwe_login
+git add composer.lock && git commit -m "chore: update siwe_login [update description]" && git push
+```
+
 ## AI Modules
 
 The project includes AI capabilities via:
