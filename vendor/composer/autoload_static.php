@@ -48,6 +48,10 @@ class ComposerStaticInit4f2f3ea35efda8b9f1d4dea9bdaa8880
         array (
             'lsolesen\\pel\\' => 13,
         ),
+        'k' =>
+        array (
+            'kornrunner\\' => 11,
+        ),
         'c' =>
         array (
             'cweagans\\Composer\\' => 18,
@@ -184,6 +188,7 @@ class ComposerStaticInit4f2f3ea35efda8b9f1d4dea9bdaa8880
         array (
             'Embed\\' => 6,
             'Eluceo\\iCal\\' => 12,
+            'Elliptic\\' => 9,
             'Egulias\\EmailValidator\\' => 23,
         ),
         'D' =>
@@ -191,6 +196,9 @@ class ComposerStaticInit4f2f3ea35efda8b9f1d4dea9bdaa8880
             'Drush\\' => 6,
             'Drupal\\social\\Behat\\' => 20,
             'Drupal\\social\\' => 14,
+            'Drupal\\siwe_login\\' => 18,
+            'Drupal\\safe_smart_accounts\\' => 27,
+            'Drupal\\group_treasury\\' => 22,
             'Drupal\\bootstrap\\' => 17,
             'Drupal\\Tests\\social\\PHPStan\\' => 28,
             'Drupal\\Core\\' => 12,
@@ -218,6 +226,11 @@ class ComposerStaticInit4f2f3ea35efda8b9f1d4dea9bdaa8880
             'Composer\\CaBundle\\' => 18,
             'CommerceGuys\\Addressing\\' => 24,
         ),
+        'B' =>
+        array (
+            'BN\\' => 3,
+            'BI\\' => 3,
+        ),
         'A' =>
         array (
             'Asm89\\Stack\\' => 12,
@@ -240,6 +253,10 @@ class ComposerStaticInit4f2f3ea35efda8b9f1d4dea9bdaa8880
         'lsolesen\\pel\\' =>
         array (
             0 => __DIR__ . '/..' . '/fileeye/pel/src',
+        ),
+        'kornrunner\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/kornrunner/keccak/src',
         ),
         'cweagans\\Composer\\' =>
         array (
@@ -601,6 +618,10 @@ class ComposerStaticInit4f2f3ea35efda8b9f1d4dea9bdaa8880
         array (
             0 => __DIR__ . '/..' . '/eluceo/ical/src',
         ),
+        'Elliptic\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/simplito/elliptic-php/lib',
+        ),
         'Egulias\\EmailValidator\\' =>
         array (
             0 => __DIR__ . '/..' . '/egulias/email-validator/src',
@@ -616,6 +637,18 @@ class ComposerStaticInit4f2f3ea35efda8b9f1d4dea9bdaa8880
         'Drupal\\social\\' =>
         array (
             0 => __DIR__ . '/../..' . '/html/profiles/contrib/social/src',
+        ),
+        'Drupal\\siwe_login\\' =>
+        array (
+            0 => __DIR__ . '/../..' . '/html/modules/contrib/siwe_login/src',
+        ),
+        'Drupal\\safe_smart_accounts\\' =>
+        array (
+            0 => __DIR__ . '/../..' . '/html/modules/contrib/safe_smart_accounts/src',
+        ),
+        'Drupal\\group_treasury\\' =>
+        array (
+            0 => __DIR__ . '/../..' . '/html/modules/contrib/group_treasury/src',
         ),
         'Drupal\\bootstrap\\' =>
         array (
@@ -708,6 +741,14 @@ class ComposerStaticInit4f2f3ea35efda8b9f1d4dea9bdaa8880
         'CommerceGuys\\Addressing\\' =>
         array (
             0 => __DIR__ . '/..' . '/commerceguys/addressing/src',
+        ),
+        'BN\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/simplito/bn-php/lib',
+        ),
+        'BI\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/simplito/bigint-wrapper-php/lib',
         ),
         'Asm89\\Stack\\' =>
         array (

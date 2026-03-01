@@ -35,6 +35,21 @@ if [ -n "${QDRANT_HOST:-}" ] && [ -n "${QDRANT_PORT:-}" ]; then
     echo "Qdrant is available!"
 fi
 
+# Check Qdrant collection dimensions — delete if wrong (will be recreated correctly)
+if [ -n "${QDRANT_HOST:-}" ] && [ -n "${QDRANT_PORT:-}" ]; then
+    echo "Checking Qdrant knowledge_garden collection..."
+    QDRANT_RESPONSE=$(curl -sf "http://${QDRANT_HOST}:${QDRANT_PORT}/collections/knowledge_garden" 2>/dev/null || echo "")
+    if echo "$QDRANT_RESPONSE" | grep -q '"size":1536'; then
+        echo "WARNING: Qdrant collection has wrong dimensions (1536), deleting for recreation with 3072..."
+        curl -sf -X DELETE "http://${QDRANT_HOST}:${QDRANT_PORT}/collections/knowledge_garden" 2>/dev/null || true
+        echo "Collection deleted. Will be recreated with correct dimensions during indexing."
+    elif [ -z "$QDRANT_RESPONSE" ]; then
+        echo "No existing Qdrant collection found (will be created during indexing)."
+    else
+        echo "Qdrant collection exists with correct dimensions."
+    fi
+fi
+
 # Create the database if it doesn't exist
 echo "Creating database if it doesn't exist..."
 mysql -h "${DB_HOST:-mariadb}" -P "${DB_PORT:-3306}" -u "root" -p"${DB_ROOT_PASSWORD:-rootpassword}" --skip-ssl -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME:-opensocial}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
