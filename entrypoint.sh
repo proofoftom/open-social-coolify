@@ -240,6 +240,40 @@ else
         echo "Search API Solr module is already enabled."
     fi
 
+    # Enable LocalNodes Platform if not already enabled
+    echo "Checking if LocalNodes Platform is enabled..."
+    if ! $DRUSH pm-list --field=status --filter='localnodes_platform' | grep -q "Enabled"; then
+        echo "Enabling LocalNodes Platform..."
+        $DRUSH en localnodes_platform -y || echo "Failed to enable localnodes_platform"
+    else
+        echo "LocalNodes Platform is already enabled."
+    fi
+
+    # Enable instance-specific demo module if not already enabled
+    DEMO_MODULE="${DEMO_MODULE:-localnodes_demo}"
+    echo "Checking if demo module ($DEMO_MODULE) is enabled..."
+    if ! $DRUSH pm-list --field=status --filter="$DEMO_MODULE" | grep -q "Enabled"; then
+        echo "Enabling demo module: $DEMO_MODULE..."
+        $DRUSH en "$DEMO_MODULE" -y || echo "Failed to enable $DEMO_MODULE"
+
+        # Load demo content since module was just enabled
+        echo "Loading demo content..."
+        $DRUSH social-demo:add file user group topic event event_enrollment comment post like || echo "Failed to add demo content"
+
+        # Index content in Solr
+        echo "Indexing content in Solr..."
+        $DRUSH search-api:index || echo "Failed to index content"
+
+        # Run cron to trigger vector indexing queue
+        echo "Running cron for vector indexing..."
+        for i in 1 2 3; do
+            $DRUSH cron || echo "Cron run $i failed"
+            sleep 5
+        done
+    else
+        echo "Demo module ($DEMO_MODULE) is already enabled."
+    fi
+
     # Enable Web3 modules if not already enabled
     echo "Checking if Web3 modules are enabled..."
     if ! $DRUSH pm-list --field=status --filter='social_group_treasury' | grep -q "Enabled"; then
