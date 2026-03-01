@@ -1,0 +1,8 @@
+treasury_opensocial:
+  version: 1.0
+  css:
+    theme:
+      css/treasury-opensocial.css: {}
+  dependencies:
+    - core/drupal
+    - group_treasury/treasury_tab

@@ -1,0 +1,20 @@
+{
+  "name": "safe_smart_accounts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Safe Smart Accounts Drupal module - Safe Protocol SDK dependencies",
+  "scripts": {
+    "postinstall": "node scripts/sync-libraries.js"
+  },
+  "dependencies": {
+    "@safe-global/protocol-kit": "^5.0.4",
+    "buffer": "^6.0.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "esbuild-plugin-polyfill-node": "^0.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

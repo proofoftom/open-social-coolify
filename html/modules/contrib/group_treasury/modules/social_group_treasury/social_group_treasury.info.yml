@@ -1,0 +1,8 @@
+name: 'Social Group Treasury'
+type: module
+description: 'Open Social integration for Group Treasury module'
+core_version_requirement: ^10
+package: 'Social'
+dependencies:
+  - group_treasury:group_treasury
+  - social_group:social_group

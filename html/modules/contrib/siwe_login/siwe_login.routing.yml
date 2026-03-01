@@ -1,0 +1,59 @@
+siwe_login.nonce:
+  path: "/siwe/nonce"
+  defaults:
+    _controller: '\Drupal\siwe_login\Controller\SiweAuthController::getNonce'
+  requirements:
+    _access: "TRUE"
+  options:
+    _admin_route: FALSE
+
+siwe_login.verify:
+  path: "/siwe/verify"
+  defaults:
+    _controller: '\Drupal\siwe_login\Controller\SiweAuthController::verify'
+  requirements:
+    _access: "TRUE"
+  options:
+    _admin_route: FALSE
+
+siwe_login.email_verification_form:
+  path: "/siwe/email-verification"
+  defaults:
+    _form: '\Drupal\siwe_login\Form\EmailVerificationForm'
+    _title: "Email Verification"
+  requirements:
+    _access: "TRUE"
+  options:
+    _admin_route: FALSE
+
+siwe_login.email_verification_confirm:
+  path: "/siwe/email-verification/{uid}/{timestamp}/{hash}"
+  defaults:
+    _controller: '\Drupal\siwe_login\Controller\EmailVerificationController::confirm'
+    _title: "Email Verification Confirmation"
+    uid: 0
+  requirements:
+    _access: "TRUE"
+    uid: \d*
+  options:
+    _admin_route: FALSE
+
+siwe_login.username_creation_form:
+  path: "/siwe/create-username"
+  defaults:
+    _form: '\Drupal\siwe_login\Form\UsernameCreationForm'
+    _title: "Create Username"
+  requirements:
+    _access: "TRUE"
+  options:
+    _admin_route: FALSE
+
+siwe_login.settings:
+  path: "/admin/config/people/siwe"
+  defaults:
+    _form: '\Drupal\siwe_login\Form\SiweSettingsForm'
+    _title: "SIWE Login Settings"
+  requirements:
+    _permission: "administer siwe login settings"
+  options:
+    _admin_route: TRUE

@@ -1,0 +1,343 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for Social Group Treasury module.
+ *
+ * This module handles Open Social-specific block visibility and permissions
+ * for the Group Treasury module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function social_group_treasury_install() {
+  _social_group_treasury_update_block_visibility();
+  _social_group_treasury_update_page_title_block();
+  _social_group_treasury_set_default_permissions();
+  \Drupal::messenger()->addMessage(t('Social Group Treasury module installed. Open Social blocks configured for treasury pages.'));
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function social_group_treasury_uninstall() {
+  _social_group_treasury_remove_block_visibility();
+  \Drupal::messenger()->addMessage(t('Social Group Treasury module uninstalled.'));
+}
+
+/**
+ * Set default treasury permissions for Open Social Group types.
+ *
+ * Default permissions (members-only access):
+ * - Member: view treasury, propose transactions
+ * - Group Manager: all treasury permissions
+ * - Outsider: none (must join to view)
+ * - Anonymous: none
+ */
+function _social_group_treasury_set_default_permissions() {
+  $role_storage = \Drupal::entityTypeManager()->getStorage('group_role');
+  $group_type_storage = \Drupal::entityTypeManager()->getStorage('group_type');
+
+  // Define permissions for admin/manager roles.
+  $admin_permissions = [
+    'view group_treasury',
+    'propose group_treasury transactions',
+    'sign group_treasury transactions',
+    'execute group_treasury transactions',
+    'manage group_treasury',
+    // Group relation permissions.
+    'create group_safe_account:safe_account entity',
+    'view group_safe_account:safe_account entity',
+    'delete group_safe_account:safe_account entity',
+  ];
+
+  // Define permissions for member roles.
+  $member_permissions = [
+    'view group_treasury',
+    'propose group_treasury transactions',
+    'view group_safe_account:safe_account entity',
+  ];
+
+  // Load all Group types.
+  $group_types = $group_type_storage->loadMultiple();
+
+  foreach ($group_types as $group_type) {
+    $group_type_id = $group_type->id();
+
+    // Open Social uses {group_type}-group_manager for admin role.
+    $admin_role_patterns = [
+      $group_type_id . '-group_manager',
+      $group_type_id . '-admin',
+    ];
+
+    // Member role pattern.
+    $member_role_id = $group_type_id . '-member';
+
+    // Grant permissions to admin/manager roles.
+    foreach ($admin_role_patterns as $role_id) {
+      $role = $role_storage->load($role_id);
+      if ($role) {
+        $updated = FALSE;
+        foreach ($admin_permissions as $permission) {
+          if (!$role->hasPermission($permission)) {
+            $role->grantPermission($permission);
+            $updated = TRUE;
+          }
+        }
+        if ($updated) {
+          $role->save();
+          \Drupal::logger('social_group_treasury')->info('Granted treasury permissions to @role role.', [
+            '@role' => $role->label(),
+          ]);
+        }
+      }
+    }
+
+    // Grant permissions to member role.
+    $member_role = $role_storage->load($member_role_id);
+    if ($member_role) {
+      $updated = FALSE;
+      foreach ($member_permissions as $permission) {
+        if (!$member_role->hasPermission($permission)) {
+          $member_role->grantPermission($permission);
+          $updated = TRUE;
+        }
+      }
+      if ($updated) {
+        $member_role->save();
+        \Drupal::logger('social_group_treasury')->info('Granted treasury permissions to @role role.', [
+          '@role' => $member_role->label(),
+        ]);
+      }
+    }
+
+    // Explicitly ensure outsider and anonymous have NO treasury permissions.
+    $restricted_roles = [
+      $group_type_id . '-outsider',
+      $group_type_id . '-anonymous',
+    ];
+
+    foreach ($restricted_roles as $role_id) {
+      $role = $role_storage->load($role_id);
+      if ($role) {
+        $revoked = FALSE;
+        foreach ($admin_permissions as $permission) {
+          if ($role->hasPermission($permission)) {
+            $role->revokePermission($permission);
+            $revoked = TRUE;
+          }
+        }
+        if ($revoked) {
+          $role->save();
+          \Drupal::logger('social_group_treasury')->info('Revoked treasury permissions from @role role for secure defaults.', [
+            '@role' => $role->label(),
+          ]);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Helper to add treasury path to Open Social block visibility.
+ */
+function _social_group_treasury_update_block_visibility() {
+  $config_factory = \Drupal::configFactory();
+  $treasury_path = '/group/*/treasury';
+
+  // Open Social-specific blocks that should display on treasury pages.
+  $blocks_to_update = [
+    'block.block.groupheroblock',
+    'block.block.socialblue_groupheroblock',
+    'block.block.socialblue_group_statistic_block',
+    'block.block.socialblue_group_add_block',
+    'block.block.socialblue_group_add_event_block',
+    'block.block.socialblue_group_add_topic_block',
+  ];
+
+  foreach ($blocks_to_update as $block_id) {
+    $config = $config_factory->getEditable($block_id);
+
+    if ($config->isNew()) {
+      continue;
+    }
+
+    $current_paths = $config->get('visibility.request_path.pages');
+
+    if (empty($current_paths)) {
+      continue;
+    }
+
+    if (strpos($current_paths, $treasury_path) !== FALSE) {
+      continue;
+    }
+
+    $paths_array = preg_split('/\r\n|\r|\n/', $current_paths);
+
+    // Insert after /group/*/topics if present.
+    $insert_position = FALSE;
+    foreach ($paths_array as $index => $path) {
+      if (strpos($path, '/group/*/topics') !== FALSE) {
+        $insert_position = $index + 1;
+        break;
+      }
+    }
+
+    if ($insert_position !== FALSE) {
+      array_splice($paths_array, $insert_position, 0, $treasury_path);
+    }
+    else {
+      $paths_array[] = $treasury_path;
+    }
+
+    $new_paths = implode("\r\n", $paths_array);
+    $config->set('visibility.request_path.pages', $new_paths);
+    $config->save();
+
+    \Drupal::logger('social_group_treasury')->info('Updated block visibility for @block_id', [
+      '@block_id' => $block_id,
+    ]);
+  }
+
+  \Drupal::service('plugin.manager.block')->clearCachedDefinitions();
+}
+
+/**
+ * Helper to remove treasury path from Open Social block visibility.
+ */
+function _social_group_treasury_remove_block_visibility() {
+  $config_factory = \Drupal::configFactory();
+  $treasury_path = '/group/*/treasury';
+
+  $blocks_to_update = [
+    'block.block.groupheroblock',
+    'block.block.socialblue_groupheroblock',
+    'block.block.socialblue_group_statistic_block',
+    'block.block.socialblue_group_add_block',
+    'block.block.socialblue_group_add_event_block',
+    'block.block.socialblue_group_add_topic_block',
+  ];
+
+  foreach ($blocks_to_update as $block_id) {
+    $config = $config_factory->getEditable($block_id);
+
+    if ($config->isNew()) {
+      continue;
+    }
+
+    $current_paths = $config->get('visibility.request_path.pages');
+
+    if (empty($current_paths)) {
+      continue;
+    }
+
+    if (strpos($current_paths, $treasury_path) === FALSE) {
+      continue;
+    }
+
+    $paths_array = preg_split('/\r\n|\r|\n/', $current_paths);
+    $paths_array = array_filter($paths_array, function ($path) use ($treasury_path) {
+      return trim($path) !== $treasury_path;
+    });
+
+    $new_paths = implode("\r\n", $paths_array);
+    $config->set('visibility.request_path.pages', $new_paths);
+    $config->save();
+
+    \Drupal::logger('social_group_treasury')->info('Removed treasury visibility from @block_id', [
+      '@block_id' => $block_id,
+    ]);
+  }
+
+  \Drupal::service('plugin.manager.block')->clearCachedDefinitions();
+}
+
+/**
+ * Helper to hide page title block on treasury pages.
+ */
+function _social_group_treasury_update_page_title_block() {
+  $config_factory = \Drupal::configFactory();
+
+  // Open Social page title blocks.
+  $title_blocks = [
+    'block.block.socialblue_pagetitleblock_content',
+    'block.block.pagetitleblock',
+    'block.block.socialblue_pagetitleblock',
+  ];
+
+  foreach ($title_blocks as $block_id) {
+    $config = $config_factory->getEditable($block_id);
+
+    if ($config->isNew()) {
+      continue;
+    }
+
+    // Check if this block uses negated request_path visibility.
+    $negate = $config->get('visibility.request_path.negate');
+    if ($negate !== TRUE) {
+      continue;
+    }
+
+    $current_paths = $config->get('visibility.request_path.pages');
+    if (empty($current_paths)) {
+      continue;
+    }
+
+    // Check if treasury path already exists.
+    if (strpos($current_paths, '*/treasury') !== FALSE) {
+      continue;
+    }
+
+    // Add */treasury to the exclusion list.
+    $paths_array = preg_split('/\r\n|\r|\n/', $current_paths);
+
+    // Insert after */topics.
+    $insert_position = FALSE;
+    foreach ($paths_array as $index => $path) {
+      if (strpos($path, '*/topics') !== FALSE) {
+        $insert_position = $index + 1;
+        break;
+      }
+    }
+
+    if ($insert_position !== FALSE) {
+      array_splice($paths_array, $insert_position, 0, '*/treasury');
+    }
+    else {
+      $paths_array[] = '*/treasury';
+    }
+
+    $new_paths = implode("\r\n", $paths_array);
+    $config->set('visibility.request_path.pages', $new_paths);
+    $config->save();
+
+    \Drupal::logger('social_group_treasury')->info('Hidden page title block @block_id on treasury pages.', [
+      '@block_id' => $block_id,
+    ]);
+  }
+}
+
+/**
+ * Update Open Social block visibility to include treasury tab.
+ */
+function social_group_treasury_update_9001() {
+  _social_group_treasury_update_block_visibility();
+  return t('Added treasury path to Open Social block visibility configurations.');
+}
+
+/**
+ * Hide page title block on treasury pages.
+ */
+function social_group_treasury_update_9002() {
+  _social_group_treasury_update_page_title_block();
+  return t('Hidden page title block on treasury pages for proper Open Social layout.');
+}
+
+/**
+ * Grant treasury permissions to Open Social Group Manager and Member roles.
+ */
+function social_group_treasury_update_9003() {
+  _social_group_treasury_set_default_permissions();
+  return t('Granted treasury permissions to Open Social Group roles.');
+}

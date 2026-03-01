@@ -1,0 +1,6 @@
+siwe_login.settings:
+  title: "Sign in with Ethereum (SIWE) Login"
+  description: "Configure Sign in with Ethereum (SIWE) Login settings"
+  parent: user.admin_index
+  route_name: siwe_login.settings
+  weight: 100

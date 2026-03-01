@@ -1,0 +1,182 @@
+<?php
+
+/**
+ * @file
+ * Install and uninstall hooks for the SIWE Login module.
+ */
+
+use Drupal\block\Entity\Block;
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+
+/**
+ * Implements hook_install().
+ */
+function siwe_login_install() {
+  // Set the expected_domain to the current host during installation.
+  $config = \Drupal::configFactory()->getEditable('siwe_login.settings');
+  $config->set('expected_domain', \Drupal::request()->getHost())->save();
+
+  // Create field storage for Ethereum address.
+  if (!FieldStorageConfig::loadByName('user', 'field_ethereum_address')) {
+    FieldStorageConfig::create([
+      'field_name' => 'field_ethereum_address',
+      'entity_type' => 'user',
+      'type' => 'string',
+      'settings' => [
+        'max_length' => 42,
+        'case_sensitive' => FALSE,
+        'is_ascii' => TRUE,
+      ],
+      'cardinality' => 1,
+    ])->save();
+  }
+
+  // Create field storage for ENS name.
+  if (!FieldStorageConfig::loadByName('user', 'field_ens_name')) {
+    FieldStorageConfig::create([
+      'field_name' => 'field_ens_name',
+      'entity_type' => 'user',
+      'type' => 'string',
+      'settings' => [
+        'max_length' => 255,
+        'case_sensitive' => FALSE,
+        'is_ascii' => FALSE,
+      ],
+      'cardinality' => 1,
+    ])->save();
+  }
+
+  // Create field for Ethereum address on user entity.
+  if (!FieldConfig::loadByName('user', 'user', 'field_ethereum_address')) {
+    FieldConfig::create([
+      'field_name' => 'field_ethereum_address',
+      'entity_type' => 'user',
+      'bundle' => 'user',
+      'label' => 'Ethereum Address',
+      'description' => 'The Ethereum address associated with this user account.',
+      'required' => FALSE,
+      'translatable' => FALSE,
+      'settings' => [],
+    ])->save();
+  }
+
+  // Get the default theme.
+  $default_theme = \Drupal::config('system.theme')->get('default');
+
+  // Place the SIWE login block in the secondary menu region for anonymous users.
+  // First, check if the block already exists.
+  $block_id = 'siwe_login';
+  $block = \Drupal::entityTypeManager()->getStorage('block')->load($block_id);
+
+  if (!$block) {
+    // Create the SIWE login block.
+    $block = \Drupal::entityTypeManager()->getStorage('block')->create([
+      'id' => $block_id,
+      'plugin' => 'siwe_login_block',
+      'theme' => $default_theme,
+      'region' => 'secondary_menu',
+      'weight' => 0,
+      'settings' => [
+        'label' => 'SIWE Login',
+        'label_display' => FALSE,
+        'provider' => 'siwe_login',
+        'button_text' => 'Sign in with Ethereum',
+      ],
+      'visibility' => [
+        'user_role' => [
+          'id' => 'user_role',
+          'roles' => [
+            'anonymous' => 'anonymous',
+          ],
+          'negate' => FALSE,
+          'context_mapping' => [
+            'user' => '@user.current_user_context:current_user',
+          ],
+        ],
+      ],
+    ]);
+    $block->save();
+  }
+
+  // Update the Olivero account menu visibility to only show for authenticated users.
+  $account_menu_block = \Drupal::entityTypeManager()->getStorage('block')->load('olivero_account_menu');
+  if ($account_menu_block) {
+    // Load the block entity to modify its properties.
+    $account_menu_block = Block::load('olivero_account_menu');
+    if ($account_menu_block) {
+      $visibility = $account_menu_block->get('visibility');
+      $visibility['user_role'] = [
+        'id' => 'user_role',
+        'roles' => [
+          'authenticated' => 'authenticated',
+        ],
+        'negate' => FALSE,
+        'context_mapping' => [
+          'user' => '@user.current_user_context:current_user',
+        ],
+      ];
+      $account_menu_block->set('visibility', $visibility);
+      $account_menu_block->save();
+    }
+  }
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function siwe_login_uninstall() {
+  // Delete the SIWE login block.
+  $block = \Drupal::entityTypeManager()->getStorage('block')->load('siwe_login');
+  if ($block) {
+    $block->delete();
+  }
+
+  // Delete field configurations.
+  $field_config = FieldConfig::loadByName('user', 'user', 'field_ethereum_address');
+  if ($field_config) {
+    $field_config->delete();
+  }
+
+  $field_storage = FieldStorageConfig::loadByName('user', 'field_ethereum_address');
+  if ($field_storage) {
+    $field_storage->delete();
+  }
+
+  $field_storage = FieldStorageConfig::loadByName('user', 'field_ens_name');
+  if ($field_storage) {
+    $field_storage->delete();
+  }
+
+  // Reset the Olivero account menu visibility to default.
+  $account_menu_block = \Drupal::entityTypeManager()->getStorage('block')->load('olivero_account_menu');
+  if ($account_menu_block) {
+    // Load the block entity to modify its properties.
+    $account_menu_block = Block::load('olivero_account_menu');
+    if ($account_menu_block) {
+      $visibility = $account_menu_block->get('visibility');
+      // Remove the user_role visibility condition if it exists.
+      unset($visibility['user_role']);
+      $account_menu_block->set('visibility', $visibility);
+      $account_menu_block->save();
+    }
+  }
+}
+
+/**
+ * Add Web3Onboard configuration settings.
+ */
+function siwe_login_update_9001() {
+  $config = \Drupal::configFactory()->getEditable('siwe_login.settings');
+
+  if ($config->get('web3onboard_enabled') === NULL) {
+    $config
+      ->set('web3onboard_enabled', FALSE)
+      ->set('walletconnect_enabled', FALSE)
+      ->set('walletconnect_project_id', '')
+      ->set('injected_wallets_enabled', TRUE)
+      ->set('app_name', '')
+      ->set('onboard_theme', 'system')
+      ->save();
+  }
+}
