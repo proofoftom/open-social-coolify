@@ -140,6 +140,12 @@ class CommentGroupContentFormatter extends CommentDefaultFormatter {
     $output = parent::viewElements($items, $langcode);
     $entity = $items->getEntity();
 
+    // Preserve keys required by core's comment_preprocess_field().
+    // Parent::viewElements() sets these, but code below may unset $output[0]
+    // and recreate it without them, causing PHP warnings.
+    $comment_type = $output[0]['#comment_type'] ?? $this->getFieldSetting('comment_type');
+    $comment_display_mode = $output[0]['#comment_display_mode'] ?? $this->getFieldSetting('default_mode');
+
     // Exclude entities without the set id.
     if (!empty($entity->id())) {
       $group_contents = GroupRelationship::loadByEntity($entity);
@@ -281,6 +287,16 @@ class CommentGroupContentFormatter extends CommentDefaultFormatter {
         '#markup' => $description,
       ];
     }
+    // Ensure required keys are present after all modifications to $output[0].
+    if (isset($output[0]) && is_array($output[0])) {
+      $output[0] += [
+        '#comment_type' => $comment_type,
+        '#comment_display_mode' => $comment_display_mode,
+        'comments' => [],
+        'comment_form' => [],
+      ];
+    }
+
     return $output;
   }
 

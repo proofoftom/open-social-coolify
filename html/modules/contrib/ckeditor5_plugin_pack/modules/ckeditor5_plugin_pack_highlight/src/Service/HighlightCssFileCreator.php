@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Drupal\ckeditor5_plugin_pack_highlight\Service;
 
+use Drupal\Core\File\FileExists;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormStateInterface;
 
@@ -61,7 +62,7 @@ class HighlightCssFileCreator {
    * @return bool
    *   TRUE if the file was saved successfully, FALSE otherwise.
    */
-  public function saveHighlightCss(array $configuration, string $format, array $form = NULL, FormStateInterface $form_state = NULL): bool {
+  public function saveHighlightCss(array $configuration, string $format, ?array $form = NULL, ?FormStateInterface $form_state = NULL): bool {
     $css = '';
     if ($configuration['use_default_markers'] ?? TRUE) {
       $css .= self::DEFAULT_CSS;
@@ -81,7 +82,7 @@ class HighlightCssFileCreator {
     $filename = 'ckeditor5_plugin_pack_highlight-' . $format . '.css';
     $filePath = $directory . $filename;
 
-    $this->fileSystem->saveData($css, $filePath, FileSystemInterface::EXISTS_REPLACE);
+    $this->fileSystem->saveData($css, $filePath, FileExists::Replace);
 
     return TRUE;
   }

@@ -8,6 +8,7 @@ use Drupal\entity_test\Entity\EntityTestStringId;
 use Drupal\search_api\Entity\Index;
 use Drupal\search_api_test_bulk_form\TypedData\FooDataDefinition;
 use Drupal\Tests\BrowserTestBase;
+use Drupal\views\Entity\View;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
@@ -47,6 +48,86 @@ class SearchApiBulkFormTest extends BrowserTestBase {
     $this->index = Index::load('test_index');
     $this->createIndexedContent();
     $this->drupalLogin($this->createUser(['view test entity']));
+  }
+
+  /**
+   * Tests cache metadata of Search API views.
+   *
+   * @param string $cache_plugin_id
+   *   The ID of the Views cache plugin to test.
+   *
+   * @dataProvider viewsCacheMetadataTestDataProvider
+   */
+  public function testViewsCacheMetadata(string $cache_plugin_id): void {
+    // Disable direct indexing.
+    $this->index
+      ->set('options', ['index_directly' => FALSE])
+      ->save();
+    // Set the selected caching method for the test views page.
+    $views = View::load('search_api_test_bulk_form');
+    $displays = $views->get('display');
+    $this->assertArrayHasKey('default', $displays);
+    $displays['default']['display_options']['cache'] = [
+      'type' => $cache_plugin_id,
+      'options' => [],
+    ];
+    $views->set('display', $displays)->save();
+
+    $this->drupalGet('/search-api-test-bulk-form');
+    $assert = $this->assertSession();
+    $page = $this->getSession()->getPage();
+
+    // Get the original label of entity_test:1 and entity_test:2.
+    $original_labels = $this->getTestEntityLabels();
+
+    // Change the label of entity_test:1 and entity_test:2.
+    $suffix = '--updated';
+    \Drupal::state()->set('search_api_test_bulk_form.update_name_suffix', $suffix);
+    $this->checkCheckboxInRow('entity:entity_test/1:en');
+    $this->checkCheckboxInRow('entity:entity_test/2:en');
+    $page->selectFieldOption('Action', 'Search API test bulk form action: entity_test');
+    $page->pressButton('Apply to selected items');
+    $assert->pageTextContains('Search API test bulk form action: entity_test was applied to 2 items.');
+
+    // Entity labels must now have the "--updated" suffix.
+    $expected_labels = array_reduce(
+      $original_labels,
+      function (array $carry, string $label) use ($suffix) {
+        $carry[] = "$label$suffix";
+        return $carry;
+      },
+      [],
+    );
+    $this->assertSame($expected_labels, $this->getTestEntityLabels());
+  }
+
+  /**
+   * Provides test data sets for testViewsCacheMetadata().
+   *
+   * @return array<string, array{0: string}>
+   *   An associative array of argument arrays for testViewsCacheMetadata(),
+   *   keyed by data set label.
+   *
+   * @see testViewsCacheMetadata()
+   */
+  public static function viewsCacheMetadataTestDataProvider(): array {
+    return [
+      'search_api_tag' => ['search_api_tag'],
+      'search_api_time_tag' => ['search_api_time_tag'],
+    ];
+  }
+
+  /**
+   * Returns the labels of the test entities used in ::testViewsCacheMetadata.
+   *
+   * @return string[]
+   *   The labels of the test entities used in ::testViewsCacheMetadata.
+   */
+  protected function getTestEntityLabels(): array {
+    return [
+      $this->getRowContainingText('entity:entity_test/1:en')->find('css', 'td.views-field-name')->getText(),
+      $this->getRowContainingText('entity:entity_test/2:en')->find('css', 'td.views-field-name')->getText(),
+    ];
   }
 
   /**

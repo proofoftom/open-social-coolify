@@ -62,4 +62,15 @@ interface Oauth2ScopeAdapterInterface {
    */
   public function loadChildren(string $parent_id): array;
 
+  /**
+   * Load scopes filtered by grant type.
+   *
+   * @param string $grant_type
+   *   An string of the grant type ID to filter by.
+   *
+   * @return \Drupal\simple_oauth\Oauth2ScopeInterface[]
+   *   An array of scope objects indexed by their ids, filtered by grant type.
+   */
+  public function loadByGrantType(string $grant_type): array;
+
 }

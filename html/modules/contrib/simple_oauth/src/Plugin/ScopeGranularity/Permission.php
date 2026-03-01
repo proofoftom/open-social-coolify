@@ -79,6 +79,13 @@ class Permission extends ScopeGranularityBase implements ContainerFactoryPluginI
   /**
    * {@inheritdoc}
    */
+  public function getPermissions(): array {
+    return [$this->getConfiguration()['permission']];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $form['permission'] = [
       '#type' => 'select',

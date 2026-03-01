@@ -466,8 +466,6 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
       $user_prompt = $this->agentHelper->getFullContextOfTask($this->task);
     }
 
-    $this->aiProvider->setChatSystemRole($system_prompt);
-
     $functions = $this->getFunctions();
 
     // Add the final message.
@@ -519,7 +517,12 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
       $tags[] = 'ai_agents_runner_' . $this->runnerId;
     }
 
+    // Empty the system prompt, until this is fixed
+    // https://www.drupal.org/project/ai/issues/3573100
+    $this->aiProvider->setChatSystemRole('');
+
     $input = new ChatInput($this->chatHistory);
+    $input->setSystemPrompt($system_prompt);
     if (count($functions) && count($functions['normalized'])) {
       $input->setChatTools(new ToolsInput($functions['normalized']));
     }

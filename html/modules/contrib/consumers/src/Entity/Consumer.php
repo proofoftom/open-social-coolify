@@ -5,6 +5,7 @@ namespace Drupal\consumers\Entity;
 use Drupal\Core\Access\AccessException;
 use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityChangedTrait;
+use Drupal\Core\Entity\EntityPublishedTrait;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
@@ -48,6 +49,7 @@ use Drupal\user\EntityOwnerTrait;
  *     "uuid" = "uuid",
  *     "langcode" = "langcode",
  *     "owner" = "owner_id",
+ *     "published" = "status",
  *   },
  *   links = {
  *     "canonical" = "/admin/config/services/consumer/{consumer}",
@@ -63,6 +65,7 @@ class Consumer extends ContentEntityBase implements ConsumerInterface {
 
   use EntityChangedTrait;
   use EntityOwnerTrait;
+  use EntityPublishedTrait;
 
   /**
    * {@inheritdoc}
@@ -77,17 +80,8 @@ class Consumer extends ContentEntityBase implements ConsumerInterface {
         $this->removeDefaultConsumerFlags();
       }
       catch (AccessException $exception) {
-        // Backwards compatibility of error logging. See
-        // https://www.drupal.org/node/2932520. This can be removed when we no
-        // longer support Drupal > 10.1.
-        if (version_compare(\Drupal::VERSION, '10.1', '>=')) {
-          $logger = \Drupal::logger('consumers');
-          Error::logException($logger, $exception);
-        }
-        else {
-          // @phpstan-ignore-next-line
-          watchdog_exception('consumers', $exception);
-        }
+        $logger = \Drupal::logger('consumers');
+        Error::logException($logger, $exception);
 
         \Drupal::messenger()->addError($exception->getMessage());
         $this->set('is_default', FALSE);
@@ -209,6 +203,30 @@ class Consumer extends ContentEntityBase implements ConsumerInterface {
       ->setRevisionable(TRUE)
       ->setTranslatable(TRUE)
       ->setDefaultValue(FALSE);
+
+    $fields['status'] = BaseFieldDefinition::create('boolean')
+      ->setLabel(new TranslatableMarkup('Status'))
+      ->setDescription(new TranslatableMarkup('The status of the @label.', $args))
+      ->setSetting('on_label', 'Enabled')
+      ->setDisplayOptions('form', [
+        'type' => 'boolean_checkbox',
+        'settings' => [
+          'display_label' => FALSE,
+        ],
+        'weight' => 100,
+      ])
+      ->setDisplayConfigurable('form', TRUE)
+      ->setDisplayOptions('view', [
+        'type' => 'boolean',
+        'label' => 'above',
+        'weight' => 100,
+        'settings' => [
+          'format' => 'enabled-disabled',
+        ],
+      ])
+      ->setDisplayConfigurable('view', TRUE)
+      ->setRevisionable(TRUE)
+      ->setDefaultValue(TRUE);
 
     return $fields;
   }

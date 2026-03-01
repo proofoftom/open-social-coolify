@@ -217,7 +217,8 @@ class Agent extends ModelOwnerBase {
             $config[$key . '___' . $valueKey] = is_array($value) ? implode("\n", $value) : $value;
           }
         }
-        $config['return_directly'] = (bool) ($model->get('tool_settings')[$id]['return_directly'] ?? 0);
+        $toolSettingsEntry = $model->get('tool_settings')[$id] ?? [];
+        $config = array_merge($toolSettingsEntry, $config);
         $components[] = new Component(
           $this,
           $componentId,
@@ -268,6 +269,9 @@ class Agent extends ModelOwnerBase {
     $plugin = $this->ownerComponent($type, $id);
     if ($plugin instanceof FunctionCallInterface) {
       $config['return_directly'] = FALSE;
+      $config['require_usage'] = FALSE;
+      $config['use_artifacts'] = FALSE;
+      $config['progress_message'] = '';
       $properties = $plugin->normalize()->getProperties();
       foreach ($properties as $property) {
         $property_name = $property->getName();
@@ -334,6 +338,27 @@ class Agent extends ModelOwnerBase {
         '#title' => $this->t('Return directly'),
         '#description' => $this->t('Check this box if you want to return the result directly, without the LLM trying to rewrite them or use another tool. This is usually used for tools that are not used in a conversation or when its being used in an API where the tools is the structured result.'),
         '#default_value' => FALSE,
+      ];
+
+      $form['require_usage'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Require usage'),
+        '#description' => $this->t('Check this box if you want to require that this tool is used at least once in the agent execution. If the LLM does not use this tool, an error will be thrown. This is useful for tools that must be used, e.g. for compliance reasons.'),
+        '#default_value' => FALSE,
+      ];
+
+      $form['use_artifacts'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Use artifacts'),
+        '#description' => $this->t('Store tool response in an artifact, using a placeholder instead of sending responses to the AI provider. This is useful for tools that return large amounts of data and will be referenced by other tools but not needed for AI.'),
+        '#default_value' => FALSE,
+      ];
+
+      $form['progress_message'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Progress message'),
+        '#description' => $this->t('An optional message that will be shown to the user while this tool is being executed. This can be used to inform the user about the current progress of the agent.'),
+        '#default_value' => '',
       ];
       $properties = $plugin->normalize()->getProperties();
       foreach ($properties as $property) {
@@ -450,17 +475,21 @@ class Agent extends ModelOwnerBase {
         $elementSettings = $model->get('tool_settings');
 
         $elements[$id] = TRUE;
-        $elementSettings[$id] = ['return_directly' => $config['return_directly'] ?? FALSE];
         $config += $this->ownerComponentDefaultConfig(Api::COMPONENT_TYPE_ELEMENT, $id);
-        unset($config['return_directly']);
+        $elementSettings[$id] = [];
         foreach ($config as $key => $value) {
-          [$plugin, $field] = explode('___', $key);
-          $plugin = str_replace('__colon__', ':', $plugin);
-          $value = match ($field) {
-            'values' => empty($value) ? '' : explode("\n", $value),
-            default => $value,
-          };
-          $elementUsageLimits[$id][$plugin][$field] = $value;
+          if (str_contains($key, '___')) {
+            [$plugin, $field] = explode('___', $key);
+            $plugin = str_replace('__colon__', ':', $plugin);
+            $value = match ($field) {
+              'values' => empty($value) ? '' : explode("\n", $value),
+              default => $value,
+            };
+            $elementUsageLimits[$id][$plugin][$field] = $value;
+          }
+          else {
+            $elementSettings[$id][$key] = $value;
+          }
         }
 
         $model->set('tools', $elements);

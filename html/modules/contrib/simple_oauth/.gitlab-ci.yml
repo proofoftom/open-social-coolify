@@ -24,7 +24,7 @@ include:
 # Uncomment the lines below if you want to override any of the variables. The following is just an example.
 ################
 variables:
-  _CSPELL_WORDS: 'basefield, granularities, keytype, lcobucci, pkce, pubk, pubout, sogk'
+  _CSPELL_WORDS: 'basefield, granularities, keytype, lcobucci, pkce, pubk, pubout, sogk, creds'
   SKIP_STYLELINT: 1
   SKIP_ESLINT: 1
   # Ignore platform requirement as ext-sodium is not default available.

@@ -2,12 +2,14 @@
 
 namespace Drupal\simple_oauth_static_scope\Controller;
 
+use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Component\Render\MarkupInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Url;
 use Drupal\simple_oauth_static_scope\Plugin\Oauth2ScopeManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Defines a controller for the static scopes.
@@ -99,10 +101,15 @@ class Oauth2ScopePluginController extends ControllerBase {
    *   A render array as expected by
    *   \Drupal\Core\Render\RendererInterface::render().
    *
-   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   * @throws \Symfony\Component\HttpKernel\Exception\HttpException
    */
   public function view(string $plugin_id): array {
-    $plugin_definition = $this->scopeManager->getDefinition($plugin_id);
+    try {
+      $plugin_definition = $this->scopeManager->getDefinition($plugin_id);
+    }
+    catch (PluginNotFoundException) {
+      throw new HttpException(404, 'The scope does not exist.');
+    }
 
     $build = [
       '#type' => 'table',
@@ -160,7 +167,10 @@ class Oauth2ScopePluginController extends ControllerBase {
       'key' => 'umbrella',
       'value' => $plugin_definition['umbrella'] ? 'TRUE' : 'FALSE',
     ];
-    foreach (['parent', 'granularity', 'permission', 'role'] as $key) {
+    foreach (['parent', 'granularity_id', 'permission', 'role'] as $key) {
+      if (!isset($plugin_definition[$key])) {
+        continue;
+      }
       $build['#rows'][$key] = [
         'key' => $key,
         'value' => $plugin_definition[$key],

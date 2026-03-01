@@ -122,14 +122,20 @@ class ExpiredCollector {
    *
    * @param \Drupal\consumers\Entity\Consumer $client
    *   The account.
+   * @param bool $include_refresh
+   *   Include refresh tokens.
    *
    * @return \Drupal\simple_oauth\Entity\Oauth2TokenInterface[]
    *   The tokens.
    */
-  public function collectForClient(Consumer $client): array {
+  public function collectForClient(Consumer $client, bool $include_refresh = FALSE): array {
     $query = $this->tokenStorage->getQuery();
     $query->accessCheck();
     $query->condition('client', $client->id());
+    // Only exclude refresh tokens if not explicitly included.
+    if (!$include_refresh) {
+      $query->condition('bundle', 'refresh_token', '!=');
+    }
     if (!$entity_ids = $query->execute()) {
       return [];
     }

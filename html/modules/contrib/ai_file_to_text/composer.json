@@ -1,0 +1,11 @@
+{
+    "name": "drupal/ai_file_to_text",
+    "description": "AI File to Text",
+    "type": "drupal-module",
+    "require": {
+        "phpoffice/phpword": "^1.4",
+        "smalot/pdfparser": "^2.12",
+        "league/html-to-markdown": "^5.1",
+        "drupal/ai": "^1.1.0"
+    }
+}

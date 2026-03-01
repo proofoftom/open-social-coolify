@@ -42,7 +42,7 @@ class AiAssistantApiRunner {
    *
    * @var \Drupal\ai_assistant_api\Data\UserMessage|null
    */
-  protected UserMessage|NULL $userMessage;
+  protected UserMessage|NULL $userMessage = NULL;
 
   /**
    * If it should be a streaming result.
@@ -187,6 +187,16 @@ class AiAssistantApiRunner {
   }
 
   /**
+   * Gets the context.
+   *
+   * @return array
+   *   The context.
+   */
+  public function getContext() {
+    return $this->context;
+  }
+
+  /**
    * Set streaming.
    *
    * @param bool $streaming
@@ -322,6 +332,7 @@ class AiAssistantApiRunner {
         $this->getProviderAndModel(),
         $this->getThreadsKey(),
         $this->getVerboseMode(),
+        $this->getContext(),
       );
     }
 
@@ -577,9 +588,12 @@ class AiAssistantApiRunner {
       return $history;
     }
     // Otherwise just return the last message.
-    return [
-      ['role' => 'user', 'message' => $this->userMessage->getMessage()],
-    ];
+    if ($this->userMessage) {
+      return [
+        ['role' => 'user', 'message' => $this->userMessage->getMessage()],
+      ];
+    }
+    return [];
   }
 
   /**

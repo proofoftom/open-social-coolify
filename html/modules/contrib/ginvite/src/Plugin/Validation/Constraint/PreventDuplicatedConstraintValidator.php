@@ -58,30 +58,43 @@ class PreventDuplicatedConstraintValidator extends ConstraintValidator implement
   /**
    * {@inheritdoc}
    */
-  public function validate($entity, Constraint $constraint) {
+  public function validate($group_relationship, Constraint $constraint) {
     // Validate only group_invitation bundle.
-    if (!($entity instanceof GroupRelationshipInterface) || $entity->getPluginId() != 'group_invitation') {
+    if (!($group_relationship instanceof GroupRelationshipInterface) || $group_relationship->getPluginId() != 'group_invitation') {
       return;
     }
 
-    $mail = $entity->invitee_mail->value;
+    $group = $group_relationship->gid->entity;
+
+    $mail = $group_relationship->invitee_mail->value;
+    $invitee = $group_relationship->get('entity_id')->entity;
+
     // Skip validation if email is empty.
-    if (empty($mail)) {
-      return;
-    }
+    if (!empty($mail)) {
+      if ($user = user_load_by_mail($mail)) {
+        // Check if user already a member.
+        $membership = $this->groupMembershipLoader->load($group, $user);
+        if (!empty($membership)) {
+          $this->context->addViolation($this->t('User with such email is already a member of @group.', ['@group' => $group->label()]));
+          return;
+        }
+      }
 
-    $group = $entity->gid->entity;
-    if ($user = user_load_by_mail($mail)) {
-      // Check if user already a member.
-      $membership = $this->groupMembershipLoader->load($group, $user);
-      if (!empty($membership)) {
-        $this->context->addViolation($this->t('User with such email already a member of this @group_bundle.', ['@group_bundle' => $group->getGroupType()->label()]));
-        return;
+      if ($this->groupInvitationLoader->loadByGroup($group, NULL, $mail)) {
+        $this->context->addViolation($this->t('Invitation to this user has been already sent.'));
       }
     }
+    elseif (!empty($invitee)) {
+      // If user was invited using entity reference field.
+      $membership = $this->groupMembershipLoader->load($group, $invitee);
+      if (!empty($membership)) {
+        $this->context->addViolation($this->t('User with such email is already a member of @group.', ['@group' => $group->label()]));
+        return;
+      }
 
-    if ($this->groupInvitationLoader->loadByGroup($group, NULL, $mail)) {
-      $this->context->addViolation($this->t('Invitation to this user already sent.'));
+      if ($this->groupInvitationLoader->loadByGroup($group, NULL, $invitee->getEmail())) {
+        $this->context->addViolation($this->t('Invitation to this user has been already sent.'));
+      }
     }
   }
 

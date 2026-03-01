@@ -1,0 +1,13 @@
+name: 'Social AI Indexing'
+type: module
+description: 'Custom indexing configuration for Open Social AI Knowledge Garden'
+core_version_requirement: ^10 || ^11
+package: 'Open Social AI'
+dependencies:
+  - search_api:search_api
+  - group:group
+  - ai_search:ai_search
+  - ai:ai_assistant_api
+  - ai:ai_chatbot
+components:
+  - templates/social-ai-related-content.html.twig

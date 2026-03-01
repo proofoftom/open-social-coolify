@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -8,7 +8,7 @@
   justify-content: flex-start;
   background: var(--ck-color-toolbar-background);
   padding: var(--ck-spacing-small) var(--ck-spacing-standard);
-  border: 1px solid var(--ck-color-toolbar-border);
+  border: 1px solid var(--ck-color-base-border);
   border-top-width: 0;
   border-radius: 0 0 var(--ck-border-radius) var(--ck-border-radius);
   font-size: var(--font-size-s);
@@ -21,7 +21,7 @@
 }
 
 .ck.ck-word-count div {
-  color: #666;
+  color: var(--ck-color-text);
 }
 
 .ck.ck-word-count div span {

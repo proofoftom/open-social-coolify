@@ -7,10 +7,6 @@
 .ddev
 .editorconfig
 
-# Documentation
-*.md
-!README.md
-
 # IDE and editor files
 .idea
 .vscode
@@ -25,6 +21,9 @@ private/
 *.tmp
 .DS_Store
 
-# NOTE: html/ is NOT excluded - it contains custom modules/profiles/themes
-# that need to be copied to the build context for composer scaffolding.
-# vendor/ is gitignored and won't exist, but we don't need to exclude it here.
+# Documentation (except README)
+docs/
+AGENTS.md
+GEMINI.md
+CLAUDE.md
+.claude_settings.json

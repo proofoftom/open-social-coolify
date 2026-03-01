@@ -218,7 +218,7 @@ final class ListFieldTypesTest extends KernelTestBase {
     // Check so the result is string and contains the field information.
     $this->assertIsString($result, 'The result is a string.');
     $this->assertStringContainsString('id: string', $result, 'The result contains the string field type id.');
-    $this->assertStringContainsString("label: 'Text (plain)'", $result, 'The result contains the label for string field type.');
+    $this->assertStringContainsString("text", strtolower($result), 'The result contains the label for string field type.');
     $this->assertStringContainsString('category: plain_text', $result, 'The result contains the category for string field type.');
     $this->assertStringNotContainsString('uuid:', $result, 'The result does not contain the UUID field type.');
   }
@@ -245,7 +245,7 @@ final class ListFieldTypesTest extends KernelTestBase {
     // Check so the result is string and contains the field information.
     $this->assertIsString($result, 'The result is a string.');
     $this->assertStringContainsString('string', $result, 'The result contains the string field type in simple representation.');
-    $this->assertStringContainsString("Text (plain)", $result, 'The result contains the label for string field type in simple representation.');
+    $this->assertStringContainsString("text", strtolower($result), 'The result contains the label for string field type in simple representation.');
     $this->assertStringNotContainsString('\Drupal\Core\Field\FieldItemList', $result, 'The result does not contain the FieldItemList class in simple representation.');
   }
 

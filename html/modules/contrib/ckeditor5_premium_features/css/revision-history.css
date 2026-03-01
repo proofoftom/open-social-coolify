@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -71,3 +71,25 @@
 .revision-history-active .filter-wrapper {
   display: none;
 }
+
+/* Gin theme */
+.gin--dark-mode .ck {
+  --ck-revision-history-revision-border-color: var(--gin-color-primary);
+  --ck-revision-history-revision-box-shadow: var(--gin-shadow-l1);
+  --ck-color-editable-blur-selection: var(--gin-color-primary-light-hover);
+
+  .ck.ck-button.ck-revision-history-ui__back-to-editing {
+    background: var(--gin-color-primary);
+    color: var(--gin-color-button-text);
+  }
+  .ck.ck-button.ck-revision-history-ui__back-to-editing:hover:not(.ck-disabled) {
+    background: var(--gin-color-primary-hover);
+  }
+  .ck.ck-revision-history-sidebar__revision-wrapper .ck-revision-history-sidebar__revision.ck-revision-history-sidebar__revision_selected {
+    background: var(--gin-color-primary);
+    color: var(--gin-color-button-text);
+  }
+}
+
+
+/*--gin-color-primary-light-hover*/

@@ -2,6 +2,7 @@
 
 namespace Drupal\role_delegation;
 
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\user\Entity\Role;
@@ -22,15 +23,36 @@ class DelegatableRoles implements DelegatableRolesInterface {
   public static $emptyFieldValue = ['__role_delegation_empty_field_value__'];
 
   /**
+   * The module handler service.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
+   * Constructs a DelegatableRoles object.
+   *
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
+   *   The module handler service.
+   */
+  public function __construct(ModuleHandlerInterface $moduleHandler) {
+    $this->moduleHandler = $moduleHandler;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function getAssignableRoles(AccountInterface $account): array {
     $assignable_roles = [];
-    foreach ($this->getAllRoles() as $role) {
+    $all_roles = static::getAllRoles();
+    foreach ($all_roles as $role) {
       if ($account->hasPermission('assign all roles') || $account->hasPermission(sprintf('assign %s role', $role->id()))) {
         $assignable_roles[$role->id()] = $role->label();
       }
     }
+
+    $this->moduleHandler->alter('role_delegation_assignable_roles', $assignable_roles, $all_roles, $account);
+
     return $assignable_roles;
   }
 

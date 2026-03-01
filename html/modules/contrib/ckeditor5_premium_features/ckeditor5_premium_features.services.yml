@@ -39,6 +39,8 @@ services:
       - '@theme.manager'
       - '@file_system'
       - '@file_url_generator'
+      - '@plugin.manager.ckeditor5.plugin'
+      - '@library.discovery'
 
   ckeditor5_premium_features.plugin_helper:
     class: \Drupal\ckeditor5_premium_features\Utility\PluginHelper

@@ -35,6 +35,11 @@ display:
           table: search_api_index_test_index
           field: search_api_id
           plugin_id: standard
+        name:
+          id: name
+          table: search_api_index_test_index
+          field: name
+          plugin_id: standard
       sorts:
         search_api_id:
           id: search_api_id

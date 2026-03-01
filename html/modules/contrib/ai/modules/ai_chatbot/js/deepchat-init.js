@@ -144,6 +144,13 @@
             // Add the new csrf token.
             deepchatElement.connect.url = newUrl + '?token=' + Drupal.behaviors.deepChatToggle.csrfToken;
           }
+
+          if (!drupalSettings.ai_deepchat.verbose_mode && drupalSettings.ai_deepchat.loading_message) {
+            deepchatElement.addMessage({
+              role: 'ai',
+              html: '<div class="deep-chat-temporary-message"><span>' + drupalSettings.ai_deepchat.loading_message + '</span></div>',
+            });
+          }
         }
 
         deepchatElement.addEventListener('render', async () => {
@@ -286,6 +293,7 @@
         assistant_id: drupalSettings.ai_deepchat.assistant_id,
         show_copy_icon: drupalSettings.ai_deepchat.show_copy_icon,
         structured_results: drupalSettings.ai_deepchat.structured_results,
+        verbose_mode: drupalSettings.ai_deepchat.verbose_mode,
         messages: [
           {
             role: 'user',

@@ -53,11 +53,14 @@ class GroupInvitationPermissionProvider implements PermissionProviderInterface {
       'title' => 'Invite users to group',
       'description' => 'Allows users with permissions to invite new users to group.',
     ];
+    $permissions['bulk invite users to group'] = [
+      'title' => 'Invite users to group in bulk',
+      'description' => 'Allows users with permissions to invite new users to group using bulk form.',
+    ];
     $permissions['view group invitations'] = [
       'title' => 'View group invitations',
       'description' => 'Allows users with permissions view created invitations.',
     ];
-
     $permissions['delete own invitation'] = [
       'title' => 'Delete own invitation',
       'description' => 'Allows users with permissions to delete own invitation to group.',
@@ -66,6 +69,10 @@ class GroupInvitationPermissionProvider implements PermissionProviderInterface {
       'title' => 'Delete any invitations',
       'description' => 'Allows users with permissions to delete any invitation to group.',
     ];
+
+    if ($name = $this->getAdminPermission()) {
+      $permissions[$name]['title'] = 'Administer group invitations';
+    }
 
     return $permissions;
   }

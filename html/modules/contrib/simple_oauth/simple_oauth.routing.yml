@@ -15,6 +15,15 @@ entity.oauth2_token.collection:
   requirements:
     _permission: 'administer simple_oauth entities'
 
+simple_oauth.oauth2_token.create_client_credentials:
+  path: '/admin/config/people/simple_oauth/oauth2_token/create_client_credentials'
+  defaults:
+    _title: 'Create client credentials token'
+    _form: Drupal\simple_oauth\Form\Oauth2ClientCredentialsTokenCreateForm
+  requirements:
+    _permission: 'administer simple_oauth entities'
+    _custom_access: Drupal\simple_oauth\Form\Oauth2ClientCredentialsTokenCreateForm::access
+
 entity.oauth2_token.delete_form:
   path: '/admin/config/people/simple_oauth/oauth2_token/{oauth2_token}/delete'
   defaults:
@@ -88,9 +97,8 @@ simple_oauth.jwks:
     _title: 'OpenID Connect Key Store Info (JSON)'
   methods: [GET]
   requirements:
-    _role: 'authenticated'
-  options:
-    _auth: ['oauth2']
+    # Anonymous users can download the public keys, since they are public.
+    _access: 'TRUE'
 
 simple_oauth.settings.openid_connect:
   path: '/admin/config/people/simple_oauth/openid-connect'

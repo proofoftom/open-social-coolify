@@ -20,9 +20,9 @@ use Drupal\Tests\node\Traits\ContentTypeCreationTrait;
 use Drupal\Tests\user\Traits\UserCreationTrait;
 use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 // cspell:ignore knoten körper titel zusammenfassung
-use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the "Rendered item" processor.
@@ -181,6 +181,85 @@ class RenderedItemTest extends ProcessorTestBase {
     \Drupal::service('theme_installer')->install(['claro']);
     \Drupal::configFactory()->getEditable('system.theme')->set('default', 'stable9')->save();
     \Drupal::theme()->setActiveTheme(\Drupal::service('theme.initialization')->initTheme('claro'));
+
+    // Reload the processor to get the latest services. This is necessary due to
+    // the installation of additional themes after the processor was initially
+    // created.
+    $this->index = Index::load($this->index->id());
+    $this->processor = $this->index->getProcessor('rendered_item');
+  }
+
+  /**
+   * Creates a field of an body field storage on the specified bundle.
+   *
+   * Overridden to use field type "text_with_summary" instead of the "text_long"
+   * type used in newer versions of Drupal.
+   *
+   * @param string $entityType
+   *   The type of entity the field will be attached to.
+   * @param string $bundle
+   *   The bundle name of the entity the field will be attached to.
+   * @param string $fieldName
+   *   (optional) The name of the field. Defaults to 'body'.
+   * @param string $fieldLabel
+   *   (optional) The label for the field. Defaults to 'Body'.
+   * @param int $cardinality
+   *   (optional) The cardinality of the field. Defaults to 1.
+   */
+  protected function createBodyField(string $entityType, string $bundle, string $fieldName = 'body', string $fieldLabel = 'Body', int $cardinality = 1): void {
+    // Look for or add the specified field to the requested entity bundle.
+    $fieldStorage = FieldStorageConfig::loadByName($entityType, $fieldName);
+    if (!$fieldStorage) {
+      FieldStorageConfig::create([
+        'field_name' => $fieldName,
+        'type' => 'text_with_summary',
+        'entity_type' => $entityType,
+        'cardinality' => $cardinality,
+        'persist_with_no_fields' => TRUE,
+      ])->save();
+      $fieldStorage = FieldStorageConfig::loadByName($entityType, $fieldName);
+    }
+    if (!FieldConfig::loadByName($entityType, $bundle, $fieldName)) {
+      FieldConfig::create([
+        'field_storage' => $fieldStorage,
+        'bundle' => $bundle,
+        'label' => $fieldLabel,
+        'settings' => [
+          'display_summary' => TRUE,
+          'allowed_formats' => [],
+        ],
+      ])->save();
+
+      /** @var \Drupal\Core\Entity\EntityDisplayRepositoryInterface $display_repository */
+      $display_repository = \Drupal::service('entity_display.repository');
+
+      // Assign widget settings for the default form mode.
+      $display_repository->getFormDisplay($entityType, $bundle)
+        ->setComponent('body', [
+          'type' => 'text_textarea_with_summary',
+        ])
+        ->save();
+
+      // Assign display settings for the 'default' and 'teaser' view modes.
+      $display_repository->getViewDisplay($entityType, $bundle)
+        ->setComponent('body', [
+          'label' => 'hidden',
+          'type' => 'text_default',
+        ])
+        ->save();
+
+      // The teaser view mode is created by the Standard profile and might
+      // not exist.
+      $view_modes = $display_repository->getViewModes($entityType);
+      if (isset($view_modes['teaser'])) {
+        $display_repository->getViewDisplay($entityType, $bundle, 'teaser')
+          ->setComponent('body', [
+            'label' => 'hidden',
+            'type' => 'text_summary_or_trimmed',
+          ])
+          ->save();
+      }
+    }
   }
 
   /**
@@ -293,7 +372,7 @@ class RenderedItemTest extends ProcessorTestBase {
     // when the processor was broken, because the schema metadata was also
     // adding it to the output.
     $nid = $node->id();
-    $this->assertStringContainsString('<article>', $field_value, 'Node item ' . $nid . ' not rendered in theme Stable.');
+    $this->assertStringContainsString('<article', $field_value, 'Node item ' . $nid . ' not rendered in theme Stable.');
     if ($node->bundle() === 'page') {
       $this->assertStringNotContainsString('>Read more<', $field_value, 'Node item ' . $nid . " rendered in view-mode \"search_index\".");
       $this->assertStringContainsString('>' . $node->get('body')->getValue()[0]['value'] . '<', $field_value, 'Node item ' . $nid . ' does not have rendered body inside HTML-Tags.');

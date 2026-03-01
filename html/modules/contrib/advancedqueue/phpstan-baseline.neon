@@ -67,12 +67,6 @@ parameters:
 			path: src/BackendPluginCollection.php
 
 		-
-			message: '#^Call to method success\(\) on an unknown class Drush\\Style\\DrushStyle\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Commands/AdvancedQueueCommands.php
-
-		-
 			message: '#^Method Drupal\\advancedqueue\\Commands\\AdvancedQueueCommands\:\:process\(\) has no return type specified\.$#'
 			identifier: missingType.return
 			count: 1
@@ -1041,12 +1035,6 @@ parameters:
 		-
 			message: '#^Method Drupal\\advancedqueue\\Processor\:\:stop\(\) has no return type specified\.$#'
 			identifier: missingType.return
-			count: 1
-			path: src/Processor.php
-
-		-
-			message: '#^\\Drupal calls should be avoided in classes, use dependency injection instead$#'
-			identifier: globalDrupalDependencyInjection.useDependencyInjection
 			count: 1
 			path: src/Processor.php
 

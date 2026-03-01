@@ -9,7 +9,7 @@ use Drupal\Core\Ajax\InvokeCommand;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Utility\Error;
-use Drupal\simple_oauth\Service\KeyGeneratorService;
+use Drupal\simple_oauth\Service\KeyGeneratorServiceInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -23,9 +23,9 @@ class Oauth2GenerateKeyForm extends FormBase {
   /**
    * The key generator.
    *
-   * @var \Drupal\simple_oauth\Service\KeyGeneratorService
+   * @var \Drupal\simple_oauth\Service\KeyGeneratorServiceInterface
    */
-  private KeyGeneratorService $keyGen;
+  private KeyGeneratorServiceInterface $keyGen;
 
   /**
    * The simple_oauth logger channel.
@@ -37,12 +37,12 @@ class Oauth2GenerateKeyForm extends FormBase {
   /**
    * Oauth2GenerateKeyForm constructor.
    *
-   * @param \Drupal\simple_oauth\Service\KeyGeneratorService $key_generator_service
+   * @param \Drupal\simple_oauth\Service\KeyGeneratorServiceInterface $key_generator_service
    *   The key generator.
    * @param \Psr\Log\LoggerInterface $logger
    *   The simple_oauth logger channel.
    */
-  public function __construct(KeyGeneratorService $key_generator_service, LoggerInterface $logger) {
+  public function __construct(KeyGeneratorServiceInterface $key_generator_service, LoggerInterface $logger) {
     $this->keyGen = $key_generator_service;
     $this->logger = $logger;
   }

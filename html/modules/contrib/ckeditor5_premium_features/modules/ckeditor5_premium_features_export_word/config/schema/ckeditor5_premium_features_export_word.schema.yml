@@ -98,6 +98,28 @@ ckeditor5.plugin.ckeditor5_premium_features_export_word__export_word:
               type:
                 type: string
                 label: 'Type'
+        watermark:
+          type: mapping
+          label: 'Watermark'
+          mapping:
+            image_url:
+              type: string
+              label: 'Image URL'
+            image:
+              type: sequence
+              label: 'Image'
+              sequence:
+                type: integer
+                label: 'File ID'
+            width:
+              type: string
+              label: 'Width'
+            height:
+              type: string
+              label: 'Height'
+            washout:
+              type: boolean
+              label: 'Washout'
     base64_converter:
       type: mapping
       label: 'Converter options'
@@ -199,3 +221,25 @@ ckeditor5_premium_features_export_word.settings:
               type:
                 type: string
                 label: 'Type'
+        watermark:
+          type: mapping
+          label: 'Watermark'
+          mapping:
+            image_url:
+              type: string
+              label: 'Image URL'
+            image:
+              type: sequence
+              label: 'Image'
+              sequence:
+                type: integer
+                label: 'File ID'
+            width:
+              type: string
+              label: 'Width'
+            height:
+              type: string
+              label: 'Height'
+            washout:
+              type: boolean
+              label: 'Washout'

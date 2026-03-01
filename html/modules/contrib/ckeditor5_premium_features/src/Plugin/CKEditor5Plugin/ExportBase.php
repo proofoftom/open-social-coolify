@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -108,12 +108,13 @@ abstract class ExportBase extends CKEditor5PluginDefault implements CKEditor5Plu
     }
 
     $static_plugin_config[$plugin]['converterOptions'] = $this->getCurrentConfiguration();
+    $static_plugin_config[$plugin]['converterOptions']['base_url'] = \Drupal::request()->getSchemeAndHttpHost();
 
     $file_extension = $this->getExportFileExtension();
     $file_name = $this->fileNameGenerator->generateFromRequest();
     $this->fileNameGenerator->addExtensionFile($file_name, $file_extension);
     $static_plugin_config[$plugin]['fileName'] = $file_name;
-    $static_plugin_config[$plugin]['stylesheets'] = $this->cssStyleProvider->getFormattedListOfCssFiles();
+    $static_plugin_config[$plugin]['stylesheets'] = $this->cssStyleProvider->getFormattedListOfCssFiles($editor);
     $customCssFile = $this->getCustomCssFilePath($editor->getOriginalId());
     if ($customCssFile) {
       $static_plugin_config[$plugin]['stylesheets'][] = $customCssFile;

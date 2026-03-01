@@ -10,7 +10,7 @@ use Drupal\Core\Session\AccountInterface;
 interface DelegatableRolesInterface {
 
   /**
-   * Gets the roles a user is allowed to assing.
+   * Gets the roles a user is allowed to assign.
    *
    * @param \Drupal\Core\Session\AccountInterface $account
    *   The account for which you want to know which roles they can assign.

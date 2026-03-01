@@ -4,7 +4,7 @@ namespace Drupal\simple_oauth\Drush\Commands;
 
 use Drupal\simple_oauth\Service\Exception\ExtensionNotLoadedException;
 use Drupal\simple_oauth\Service\Exception\FilesystemValidationException;
-use Drupal\simple_oauth\Service\KeyGeneratorService;
+use Drupal\simple_oauth\Service\KeyGeneratorServiceInterface;
 use Drush\Attributes as CLI;
 use Drush\Commands\AutowireTrait;
 use Drush\Commands\DrushCommands;
@@ -18,7 +18,7 @@ class SimpleOauthCommands extends DrushCommands {
   use AutowireTrait;
 
   public function __construct(
-    #[Autowire(service: 'simple_oauth.key.generator')] protected KeyGeneratorService $keygen,
+    #[Autowire(service: 'simple_oauth.key.generator')] protected KeyGeneratorServiceInterface $keygen,
   ) {
     parent::__construct();
     $this->keygen = $keygen;

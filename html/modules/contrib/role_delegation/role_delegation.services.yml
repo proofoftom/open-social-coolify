@@ -1,11 +1,12 @@
 services:
   access_check.role_delegation:
     class: Drupal\role_delegation\Access\RoleDelegationAccessCheck
-    arguments: ['@permission_generator.role_delegation', '@current_user']
+    arguments: ['@delegatable_roles', '@permission_generator.role_delegation', '@current_user']
     tags:
       - { name: access_check, applies_to: _role_delegation_access_check }
   delegatable_roles:
     class: Drupal\role_delegation\DelegatableRoles
+    arguments: ['@module_handler']
   permission_generator.role_delegation:
     class: Drupal\role_delegation\PermissionGenerator
     arguments: ['@delegatable_roles']

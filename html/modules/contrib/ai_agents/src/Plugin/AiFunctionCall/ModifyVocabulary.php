@@ -28,7 +28,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
       label: new TranslatableMarkup("Vocabulary ID"),
       description: new TranslatableMarkup("The data name of the vocabulary. Should be unique if its getting created."),
       required: TRUE,
-      constraints: ['Regex' => '/^[a-zA-Z0-9_]+$/'],
+      constraints: ['Regex' => ['pattern' => '/^[a-zA-Z0-9_]+$/']],
     ),
     'name' => new ContextDefinition(
       data_type: 'string',

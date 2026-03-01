@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -41,9 +41,8 @@
   box-sizing: border-box;
 }
 
-.ck-toolbar-container .ck.ck-toolbar {
-  border: 1px solid var(--ck-color-toolbar-border)!important;
-  border-bottom: 0!important;
+.ck-editor-instance .ck-editor .ck-sticky-panel__content {
+  border:0!important;
 }
 
 .ck-editor-container {
@@ -72,4 +71,20 @@
 
 .ck-comment__input .ck-editor__main > :is(.ck-editor__editable, .ck-source-editing-area) {
   max-height: none;
+}
+
+.gin--dark-mode .ck {
+  --ck-color-comment-background: var(--gin-bg-input);
+  --ck-color-base-text: var(--gin-color-text);
+
+  --ck-color-comment-marker: #B59937;
+  --ck-color-comment-marker-active: #D4B240;
+
+  .ck-ai-assistant-ui_theme {
+    --ck-color-button-default-hover-background: var(--gin-color-primary-light);
+    --ck-ai-toolbar-button-hover-color: var(--gin-color-primary);
+    &.ck-disabled {
+      --ck-ai-toolbar-button-hover-color: var(--ck-color-text);
+    }
+  }
 }

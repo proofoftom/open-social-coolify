@@ -1,0 +1,13 @@
+services:
+  Drupal\ai_usage_limits\EventSubscriber\AiProviderEventSubscriber:
+    autowire: true
+    tags:
+      - { name: event_subscriber }
+  Drupal\ai_usage_limits\EventSubscriber\CountTokenUsageSubscriber:
+    autowire: true
+    tags:
+      - { name: event_subscriber }
+  Drupal\ai_usage_limits\EventSubscriber\CheckTokenUsageSubscriber:
+    autowire: true
+    tags:
+      - { name: event_subscriber }

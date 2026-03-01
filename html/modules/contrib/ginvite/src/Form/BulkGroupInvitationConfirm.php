@@ -11,6 +11,7 @@ use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\Core\Url;
+use Drupal\group\Entity\GroupInterface;
 use Drupal\group\Entity\GroupRelationship;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -61,7 +62,7 @@ class BulkGroupInvitationConfirm extends ConfirmFormBase implements ContainerInj
   public function __construct(
     PrivateTempStoreFactory $temp_store_factory,
     LoggerChannelFactoryInterface $logger_factory,
-    MessengerInterface $messenger
+    MessengerInterface $messenger,
   ) {
     $this->tempStoreFactory = $temp_store_factory;
     $this->loggerFactory = $logger_factory;
@@ -69,8 +70,13 @@ class BulkGroupInvitationConfirm extends ConfirmFormBase implements ContainerInj
 
     // Redirect user to previous form if params are not available.
     if (!$this->tempstore = $this->tempStoreFactory->get('ginvite_bulk_invitation')->get('params')) {
-      $group_id = $this->getRouteMatch()->getParameter('group');
-      $destination = new Url('ginvite.invitation.bulk', ['group' => $group_id]);
+      $group = $this->getRouteMatch()->getParameter('group');
+      if ($group instanceof GroupInterface) {
+        $destination = new Url('ginvite.invitation.bulk', ['group' => $group->id()]);
+      }
+      else {
+        $destination = new Url('<front>');
+      }
       $redirect = new RedirectResponse($destination->toString());
       $this->messenger->addWarning($this->t('Unable to proceed, please try again.'));
       $redirect->send();
@@ -99,33 +105,43 @@ class BulkGroupInvitationConfirm extends ConfirmFormBase implements ContainerInj
    * {@inheritdoc}
    */
   public function getCancelUrl() {
-    return new Url('ginvite.invitation.bulk', ['group' => $this->tempstore['gid']]);
+    $group_id = $this->tempstore['gid'] ?? NULL;
+    if (!empty($group_id)) {
+      $group = $this->getRouteMatch()->getParameter('group');
+      if ($group instanceof GroupInterface) {
+        $group_id = $group->id();
+      }
+    }
+    if (!empty($group_id)) {
+      $destination = new Url('ginvite.invitation.bulk', ['group' => $group_id]);
+    }
+    else {
+      $destination = new Url('<front>');
+    }
+    return $destination;
   }
 
   /**
    * {@inheritdoc}
    */
   public function getQuestion() {
-    return $this->t('Are you sure you want to send an invitation to all e-mails listed below?');
+    return $this->t('Are you sure you want to send an invitation to all invitees listed below?');
   }
 
   /**
    * {@inheritdoc}
    */
   public function getDescription() {
-
-    $email_list_markup = '';
-    foreach ($this->tempstore['emails'] as $email) {
-      $email_list_markup .= "{$email} <br />";
+    $invitee_list_markup = '';
+    foreach ($this->tempstore['invitees'] as $invitee) {
+      $invitee_list_markup .= "{$invitee} <br />";
     }
 
-    $description = $this->t('Invitation recipients: <br /> @email_list',
+    return $this->t('Invitation recipients: <br /> @invitee_list',
       [
-        '@email_list' => new FormattableMarkup($email_list_markup, []),
+        '@invitee_list' => new FormattableMarkup($invitee_list_markup, []),
       ]
     );
-
-    return $description;
   }
 
   /**
@@ -142,13 +158,24 @@ class BulkGroupInvitationConfirm extends ConfirmFormBase implements ContainerInj
       'finished' => 'Drupal\ginvite\Form\BulkGroupInvitationConfirm::batchFinished',
     ];
 
-    foreach ($this->tempstore['emails'] as $email) {
+    foreach ($this->tempstore['invitees'] as $invitee) {
+
+      // Check if it is an email, not to load user everytime.
+      if (filter_var($invitee, FILTER_VALIDATE_EMAIL)) {
+        $invitee_email = $invitee;
+      }
+      else {
+        $user = user_load_by_name($invitee);
+        $invitee_email = $user->getEmail();
+      }
+
       $values = [
         'type' => $this->tempstore['plugin'],
         'gid' => $this->tempstore['gid'],
-        'invitee_mail' => $email,
+        'invitee_mail' => $invitee_email,
         'entity_id' => 0,
       ];
+
       $batch['operations'][] = [
         '\Drupal\ginvite\Form\BulkGroupInvitationConfirm::batchCreateInvite',
         [$values],

@@ -11,6 +11,7 @@ services:
       DB_NAME: ${DB_NAME:-opensocial}
       DB_USER: ${DB_USER:-opensocial}
       DB_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
       # Drupal settings
       DRUPAL_HASH_SALT: ${DRUPAL_HASH_SALT:-generate-a-random-string-here}
       DRUPAL_TRUSTED_HOST_PATTERNS: ${DRUPAL_TRUSTED_HOST_PATTERNS:-}
@@ -19,12 +20,19 @@ services:
       SOLR_HOST: solr
       SOLR_PORT: 8983
       SOLR_PATH: /solr
+      # Qdrant settings
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      # AI settings
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Demo content settings
+      DEMO_MODULE: ${DEMO_MODULE:-localnodes_demo}
       # Auto-install settings
-      DRUPAL_SITE_NAME: ${DRUPAL_SITE_NAME:-Open Social}
+      DRUPAL_SITE_NAME: ${DRUPAL_SITE_NAME:-LocalNodes}
       DRUPAL_ADMIN_USER: ${DRUPAL_ADMIN_USER:-admin}
       DRUPAL_ADMIN_PASS: ${DRUPAL_ADMIN_PASS:-admin}
       DRUPAL_ADMIN_EMAIL: ${DRUPAL_ADMIN_EMAIL:-admin@example.com}
-      # Coolify-provided variables (auto-detected for trusted hosts)
+      # Coolify-provided variables
       SERVICE_FQDN_OPENSOCIAL: ${SERVICE_FQDN_OPENSOCIAL:-}
       SERVICE_URL_OPENSOCIAL: ${SERVICE_URL_OPENSOCIAL:-}
       COOLIFY_FQDN: ${COOLIFY_FQDN:-}
@@ -37,12 +45,14 @@ services:
         condition: service_healthy
       solr:
         condition: service_healthy
+      qdrant:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/core/install.php"]
-      interval: 15s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 3
-      start_period: 45s
+      start_period: 120s
     labels:
       - "coolify.managed=true"
 
@@ -74,12 +84,9 @@ services:
       - SOLR_HEAP=512m
     command: >
       bash -c "
-        # Wait for file system to be ready
         sleep 2 &&
-        # Remove any existing core data that might be corrupted
         rm -rf /var/solr/data/drupal &&
-        # Precreate the drupal core using our configset with full path
-        solr-precreate drupal /opt/solr/server/solr/configsets/opensearch &&
+        solr-precreate drupal /opt/solr/server/solr/configsets/drupal &&
         exec solr -f
       "
     healthcheck:
@@ -89,8 +96,21 @@ services:
       retries: 3
       start_period: 60s
 
+  qdrant:
+    image: qdrant/qdrant:v1.13.2
+    restart: unless-stopped
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
 volumes:
   opensocial_files:
   opensocial_private:
   mariadb_data:
   solr_data:
+  qdrant_data:

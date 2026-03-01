@@ -32,4 +32,12 @@ interface ScopeGranularityInterface extends ConfigurableInterface, PluginFormInt
    */
   public function hasPermission(string $permission): bool;
 
+  /**
+   * Returns a list of permissions assigned to the scope.
+   *
+   * @return array
+   *   The permissions assigned to the scope.
+   */
+  public function getPermissions(): array;
+
 }

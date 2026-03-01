@@ -1,0 +1,4 @@
+services:
+  ai_vdb_provider_qdrant.client:
+    class: Drupal\ai_vdb_provider_qdrant\QdrantClient
+    arguments: ['@http_client_factory']

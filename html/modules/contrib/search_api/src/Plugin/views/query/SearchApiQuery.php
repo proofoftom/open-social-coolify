@@ -709,11 +709,12 @@ class SearchApiQuery extends QueryPluginBase {
     foreach ($results as $result) {
       $values = [];
       $values['_item'] = $result;
+      $values['search_api_has_fields_from_server'] = FALSE;
       try {
         $object = $result->getOriginalObject(FALSE);
         if ($object) {
           $values['_object'] = $object;
-          $values['_relationship_objects'][NULL] = [$object];
+          $values['_relationship_objects'][''] = [$object];
           if ($object instanceof EntityAdapter) {
             $values['_entity'] = $object->getEntity();
           }
@@ -747,6 +748,7 @@ class SearchApiQuery extends QueryPluginBase {
           // it doesn't really matter.
         }
         $values[$path] = $field->getValues();
+        $values['search_api_has_fields_from_server'] = TRUE;
       }
 
       $values['index'] = $count++;
@@ -771,6 +773,25 @@ class SearchApiQuery extends QueryPluginBase {
   }
 
   /**
+   * Gets all the involved entities of the view.
+   *
+   * @return \Drupal\Core\Entity\EntityInterface[]
+   */
+  protected function getAllEntities(): array {
+    $entities = [];
+
+    /** @var \Drupal\search_api\Plugin\views\ResultRow $row */
+    foreach ($this->view->result as $row) {
+      $entity_adapter = $row->_object ?? NULL;
+      if ($entity_adapter instanceof EntityAdapter) {
+        $entities[] = $entity_adapter->getEntity();
+      }
+    }
+
+    return $entities;
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function getCacheTags() {
@@ -782,6 +803,10 @@ class SearchApiQuery extends QueryPluginBase {
       // invalidated if any items on the index are indexed or deleted.
       $tags[] = 'search_api_list:' . $this->getIndex()->id();
       $tags = Cache::mergeTags($query->getCacheTags(), $tags);
+    }
+
+    foreach ($this->getAllEntities() as $entity) {
+      $tags = Cache::mergeTags($entity->getCacheTags(), $tags);
     }
 
     return $tags;
@@ -796,6 +821,10 @@ class SearchApiQuery extends QueryPluginBase {
     $query = $this->getSearchApiQuery();
     if ($query instanceof CacheableDependencyInterface) {
       $max_age = Cache::mergeMaxAges($query->getCacheMaxAge(), $max_age);
+    }
+
+    foreach ($this->getAllEntities() as $entity) {
+      $max_age = Cache::mergeMaxAges($max_age, $entity->getCacheMaxAge());
     }
 
     return $max_age;

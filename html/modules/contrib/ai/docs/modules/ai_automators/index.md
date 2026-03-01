@@ -239,6 +239,18 @@ own implementation.
   }
 ```
 
+## Field Widget Action Examples
+
+For step-by-step examples of configuring AI Automators with Field Widget Actions (FWA) to add "Generate" buttons in content edit forms, see the [Examples](examples/) section:
+
+- [FAQ Field + `faqfield_default` widget](examples/faq-field.md) - Generate FAQ entries from content using the `LLM: FAQ Field` automator
+- [Chart Field + `chart_config_default` widget](examples/chart-field.md) - Generate chart data from content using the `LLM: Chart From Text` automator
+- [Text to Audio Media](examples/text_to_audio_media_automator.md) - Generate audio from content using the `LLM: Media Audio Generation` automator
+- [Text to Image Field](examples/text_to_image_automator.md) - Generate image from content using the `LLM: Media Image Generation` automator
+- [Text to Image Media Field](examples/text_to_image_media_automator.md) - Generate image from content using the `LLM: Media Image Generation` automator
+- [Text to Address Field](examples/address_automator.md) - Generate address from content using the `LLM: Address` automator
+- [Metatag](examples/metatag_automator.md) - Generate metatags for content using the `LLM: Metatag` automator
+
 ## Developer documentation
 Check the [developers guide](../../developers/writing_an_ai_automators_plugin.md) for
 information on how to write a third party module using the AI module.

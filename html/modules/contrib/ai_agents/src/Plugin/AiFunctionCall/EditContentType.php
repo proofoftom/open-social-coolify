@@ -30,7 +30,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
       label: new TranslatableMarkup("Data Name"),
       description: new TranslatableMarkup("The required node type data name to edit. Allows for underscore and alphanumeric characters."),
       required: TRUE,
-      constraints: ['Regex' => '/^[a-zA-Z0-9_]+$/'],
+      constraints: ['Regex' => ['pattern' => '/^[a-zA-Z0-9_]+$/']],
     ),
     'label' => new ContextDefinition(
       data_type: 'string',

@@ -1,0 +1,5 @@
+ai_vdb_provider_qdrant.settings_menu:
+  title: "Qdrant Configuration"
+  description: "Configure Qdrant Vector Database"
+  route_name: ai_vdb_provider_qdrant.settings_form
+  parent: ai.admin_vdb_providers

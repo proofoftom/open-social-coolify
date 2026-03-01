@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -77,6 +77,9 @@ class UserAdapter {
     }
     if (plugins.has('RevisionTracker')) {
       plugins.get('RevisionTracker').forceDisabled(id);
+    }
+    if (plugins.has('RevisionHistory')) {
+      plugins.get('RevisionHistory').forceDisabled(id);
     }
     if (plugins.has('TrackChanges')) {
       plugins.get('TrackChanges').forceDisabled(id);

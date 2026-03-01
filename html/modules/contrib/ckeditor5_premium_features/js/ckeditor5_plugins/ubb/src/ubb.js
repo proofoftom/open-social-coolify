@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -22,7 +22,7 @@ class Ubb {
     const format = this.editor.sourceElement.dataset.editorActiveTextFormat
     const INTEGRATION_NAME = 'drupal';
     let INTEGRATION_USAGE_DATA = {
-      version: '1.6.3',
+      version: '1.7.1',
     };
 
     if (typeof format === "undefined") {

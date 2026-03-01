@@ -19,7 +19,6 @@ use Drupal\ginvite\Plugin\Group\Relation\GroupInvitation;
 use Drupal\group\Access\GroupAccessResult;
 use Drupal\group\Entity\GroupInterface;
 use Drupal\group\Entity\GroupRelationshipInterface;
-use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 
 /**
@@ -71,72 +70,22 @@ function ginvite_form_group_content_form_alter(&$form, FormStateInterface $form_
 }
 
 /**
+ * Sets the invitation status to PENDING for new invitations.
+ *
+ * Implements hook_ENTITY_TYPE_presave().
+ */
+function ginvite_group_content_presave(GroupRelationshipInterface $group_relationship) {
+  \Drupal::service('ginvite.invitation_handler')->handleGroupInvitation($group_relationship);
+}
+
+/**
  * Sends email when invitation created for not registered user.
  *
  * Implements hook_ENTITY_TYPE_insert().
  */
 function ginvite_group_content_insert(GroupRelationshipInterface $group_relationship) {
-  $plugin_id = $group_relationship->getPluginId();
-  $messenger = \Drupal::messenger();
-
-  if ($plugin_id == 'group_invitation') {
-    $mail = $group_relationship->get('invitee_mail')->getString();
-
-    // If invited user has no mail, don't try to send one.
-    if (empty($mail)) {
-      // "Invitee mail" can be hidden.
-      // More info: https://www.drupal.org/project/ginvite/issues/3206103
-      // Try to get user from "Invitee" field.
-      $uid = $group_relationship->get('entity_id')->getString();
-      // We want to be sure user exists.
-      if (!empty($uid) && ($invitee = User::load($uid))) {
-        $messenger->addMessage(t('Invite sent to %username', ['%username' => $invitee->getDisplayName()]));
-
-        $group_relationship->set('invitation_status', GroupInvitation::INVITATION_PENDING);
-        $group_relationship->save();
-      }
-    }
-    else {
-      $mail_manager = \Drupal::service('plugin.manager.mail');
-      $from = $group_relationship->getEntity();
-      $group = $group_relationship->getGroup();
-      $params = [
-        'user' => $from,
-        'group' => $group,
-        'group_content' => $group_relationship,
-        'existing_user' => FALSE,
-      ];
-      $langcode = $from->getPreferredLangcode();
-
-      // Load plugin configuration.
-      $group_plugin_collection = \Drupal::service('group_relation_type.manager')
-        ->getInstalled($group->getGroupType());
-      $group_invite_config = $group_plugin_collection->getConfiguration()['group_invitation'];
-
-      if ($invitee = user_load_by_mail($mail)) {
-        $group_relationship->set('entity_id', $invitee);
-
-        // Check if we should send an email to existing user.
-        if ($group_invite_config['send_email_existing_users']) {
-          $params['existing_user'] = TRUE;
-          $mail_manager->mail('ginvite', 'invite', $mail, $langcode, $params, NULL, TRUE);
-          $messenger->addMessage(t('Invite sent to %invitee', ['%invitee' => $invitee->getDisplayName()]));
-        }
-        else {
-          $messenger->addMessage(t('Invitation has been created.'));
-        }
-      }
-      else {
-        $mail_manager->mail('ginvite', 'invite', $mail, $langcode, $params, NULL, TRUE);
-        $messenger->addMessage(t('Invite sent to %mail', ['%mail' => $mail]));
-      }
-
-      $group_relationship->set('invitation_status', GroupInvitation::INVITATION_PENDING);
-      $group_relationship->save();
-    }
-  }
   // If new membership is created, check related invitation exists.
-  elseif ($plugin_id == 'group_membership') {
+  if ($group_relationship->getPluginId() == 'group_membership') {
     $properties = [
       'entity_id' => $group_relationship->getEntity()->id(),
       'gid' => $group_relationship->getGroup()->id(),
@@ -146,11 +95,17 @@ function ginvite_group_content_insert(GroupRelationshipInterface $group_relation
     $invitations = \Drupal::service('ginvite.invitation_loader')->loadByProperties($properties);
     if (!empty($invitations)) {
       foreach ($invitations as $invitation) {
-        // Mark invitation as accepted.
-        $invitation->getGroupRelationship()->set('invitation_status', GroupInvitation::INVITATION_ACCEPTED)->save();
+        // Remove group content if setting is enabled.
+        if ($invitation->getGroupRelationship()->getPlugin()->getConfiguration()['remove_invitation'] == 1) {
+          $invitation->getGroupRelationship()->delete();
+        }
+        elseif ($invitation->getGroupRelationship()->get('invitation_status')->value !== GroupInvitation::INVITATION_ACCEPTED) {
+          // Mark invitation as accepted.
+          $invitation->getGroupRelationship()->set('invitation_status', GroupInvitation::INVITATION_ACCEPTED)->save();
+        }
       }
 
-      $messenger->addMessage(t('You have accepted the invitation.'));
+      \Drupal::messenger()->addMessage(t('You have accepted the invitation.'));
     }
   }
 }
@@ -161,11 +116,11 @@ function ginvite_group_content_insert(GroupRelationshipInterface $group_relation
  * Implements hook_ENTITY_TYPE_delete().
  */
 function ginvite_group_content_delete(GroupRelationshipInterface $group_relationship) {
-  if ($group_relationship->getPluginId() == 'group_invitation') {
+  $plugin_id = $group_relationship->getPluginId();
+  if ($plugin_id == 'group_invitation') {
     $group = $group_relationship->getGroup();
     // Load plugin configuration.
-    $group_plugin_collection = \Drupal::service('group_relation_type.manager')->getInstalled($group->getGroupType());
-    $group_invite_config = $group_plugin_collection->getConfiguration()['group_invitation'];
+    $group_invite_config = $group_relationship->getPlugin()->getConfiguration();
 
     if ($group_invite_config['send_cancel_email'] && $group_relationship->get('invitation_status')->value == GroupInvitation::INVITATION_PENDING) {
       $from = $group_relationship->getEntity();
@@ -177,9 +132,22 @@ function ginvite_group_content_delete(GroupRelationshipInterface $group_relation
           'group' => $group,
           'group_content' => $group_relationship,
         ];
-        $langcode = $from->getPreferredLangcode();
-        \Drupal::service('plugin.manager.mail')->mail('ginvite', 'cancel', $mail, $langcode, $params, NULL, TRUE);
+        \Drupal::service('plugin.manager.mail')->mail('ginvite', 'cancel', $mail, $from->getPreferredLangcode(), $params, NULL, TRUE);
       }
+    }
+  }
+
+  // Remove invitation when member is removed.
+  if ($plugin_id == 'group_membership') {
+    $properties = [
+      'entity_id' => $group_relationship->getEntityId(),
+      'gid' => $group_relationship->getGroupId(),
+    ];
+
+    // Remove invitations, when we remove the user.
+    $invitations = \Drupal::service('ginvite.invitation_loader')->loadByProperties($properties);
+    foreach ($invitations as $invitation) {
+      $invitation->getGroupRelationship()->delete();
     }
   }
 }
@@ -343,14 +311,15 @@ function ginvite_tokens($type, $tokens, array $data, array $options, BubbleableM
           $replace = ['-', '_', ''];
           $mail_encoded = str_replace($search, $replace, base64_encode($mail));
           $params = ['invitee_mail' => $mail_encoded];
-          $options = ['absolute' => TRUE];
-          $register_link = Url::fromRoute('user.register', $params, $options)->toString();
+
+          $register_link = Url::fromRoute('user.register', $params, ['absolute' => TRUE])->toString();
           $replacements[$original] = $register_link;
           break;
 
         case 'my_invitations_link':
-          $user = user_load_by_mail($group_relationship->get('invitee_mail')->getString());
-          $my_invitations_link = Url::fromRoute('view.my_invitations.page_1', ['user' => $user->id()], ['absolute' => TRUE])->toString();
+          $url_options = ['absolute' => TRUE];
+          $url_options['query']['destination'] = Url::fromRoute('view.my_invitations.page_1')->toString();
+          $my_invitations_link = Url::fromRoute('user.login', [], $url_options)->toString();
           $replacements[$original] = $my_invitations_link;
       }
     }
@@ -475,6 +444,13 @@ function ginvite_user_login(UserInterface $user) {
  */
 function ginvite_group_access(EntityInterface $entity, $operation, AccountInterface $account) {
   if ($operation == 'view' || $operation == 'view label') {
+    // Anonymous users should not get access through pending invitations.
+    // Invitations for non-existent users are stored with entity_id = 0,
+    // which would incorrectly match all anonymous users.
+    if ($account->isAnonymous()) {
+      return AccessResult::neutral();
+    }
+
     $properties = [
       'entity_id' => $account->id(),
       'gid' => $entity->id(),

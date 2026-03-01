@@ -1,0 +1,10 @@
+name: 'Gemini Provider'
+type: module
+description: 'This enables the use of Gemini for AI module.'
+package: AI Providers
+core_version_requirement: ^10 || ^11
+configure: gemini_provider.settings_form
+
+dependencies:
+  - ai:ai
+  - key:key

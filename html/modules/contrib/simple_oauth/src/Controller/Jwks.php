@@ -7,14 +7,12 @@ use Drupal\Core\DependencyInjection\AutowireTrait;
 use Drupal\Core\DependencyInjection\ClassResolverInterface;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Session\AccountProxyInterface;
-use Drupal\simple_oauth\Authentication\TokenAuthUser;
 use Drupal\simple_oauth\Entities\JwksEntity;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * Controller for the User Info endpoint.
+ * Controller for the JWKS endpoint.
  */
 class Jwks implements ContainerInjectionInterface {
 
@@ -46,9 +44,6 @@ class Jwks implements ContainerInjectionInterface {
    *   The response.
    */
   public function handle() {
-    if (!$this->user instanceof TokenAuthUser) {
-      throw new AccessDeniedHttpException('This route is only available for authenticated requests using OAuth2.');
-    }
     if ($this->config->get('disable_openid_connect')) {
       throw new NotFoundHttpException('Not Found');
     }

@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -38,7 +38,7 @@ class AnnotationSidebar {
     $sidebar = [
       'ck_sidebar_wrapper' => [
         '#type' => 'container',
-        '#attributes' => ['class' => ['ck-editor-sidebar-wrapper', $class_wrapper]],
+        '#attributes' => ['class' => ['ck', 'ck-editor-sidebar-wrapper', $class_wrapper]],
         'ck_sidebar' => [
           '#type' => 'html_tag',
           '#tag' => 'div',

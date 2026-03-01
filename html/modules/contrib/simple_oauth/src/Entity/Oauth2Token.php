@@ -239,6 +239,22 @@ class Oauth2Token extends ContentEntityBase implements Oauth2TokenInterface {
   /**
    * {@inheritdoc}
    */
+  public function getRoles(bool $exclude_locked_roles = FALSE): array {
+    $roles = [];
+    /** @var \Drupal\simple_oauth\Oauth2ScopeProviderInterface $scope_provider */
+    $scope_provider = \Drupal::service('simple_oauth.oauth2_scope.provider');
+    /** @var \Drupal\simple_oauth\Plugin\Field\FieldType\Oauth2ScopeReferenceItemListInterface $field */
+    $field = $this->get('scopes');
+
+    foreach ($field->getScopes() as $scope) {
+      $roles = array_merge($roles, $scope_provider->getRoles($scope, $exclude_locked_roles));
+    }
+    return array_unique($roles);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getCacheTagsToInvalidate() {
     // It's feasible there are millions of OAuth2 tokens in rotation; they're
     // used only for authentication, not for computing output. Hence it does not

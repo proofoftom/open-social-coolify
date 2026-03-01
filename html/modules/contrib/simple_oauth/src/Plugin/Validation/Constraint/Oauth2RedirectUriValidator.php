@@ -13,7 +13,7 @@ class Oauth2RedirectUriValidator extends ConstraintValidator {
   /**
    * {@inheritdoc}
    */
-  public function validate($value, Constraint $constraint) {
+  public function validate($value, Constraint $constraint): void {
     foreach ($value->getValue() as $item) {
       if (!preg_match("
         /^

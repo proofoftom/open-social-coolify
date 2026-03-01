@@ -108,4 +108,13 @@ class Oauth2Scope extends PluginBase implements Oauth2ScopePluginInterface, Cont
     );
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public function getPermissions(): array {
+    $granularity = $this->getGranularity();
+    assert($granularity instanceof ScopeGranularityInterface);
+    return $granularity->getPermissions();
+  }
+
 }

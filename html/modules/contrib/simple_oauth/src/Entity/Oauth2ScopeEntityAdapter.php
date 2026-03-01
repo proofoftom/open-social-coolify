@@ -87,4 +87,14 @@ class Oauth2ScopeEntityAdapter implements Oauth2ScopeAdapterInterface, Container
     return $this->scopeStorage->loadMultiple($entity_ids);
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public function loadByGrantType(string $grant_type): array {
+    $scopes = $this->loadMultiple();
+    return array_filter($scopes, function (Oauth2ScopeInterface $scope) use ($grant_type) {
+      return $scope->isGrantTypeEnabled($grant_type);
+    });
+  }
+
 }

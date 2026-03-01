@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -81,6 +81,7 @@ class LayoutTable extends CKEditor5PluginDefault implements ContainerFactoryPlug
         'text_alignment' => 'left',
         'vertical_alignment' => 'middle',
       ],
+      'disable_properties' => FALSE,
     ];
   }
 
@@ -185,6 +186,13 @@ class LayoutTable extends CKEditor5PluginDefault implements ContainerFactoryPlug
         'callback' => [$this, 'refreshColorsCallback'],
         'wrapper' => 'custom-colors-wrapper',
       ],
+    ];
+
+    $form['disable_properties'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Disable Properties'),
+      '#default_value' => $this->configuration['disable_properties'],
+      '#description' => $this->t('Disables table and table cell properties buttons form the contextual menu. By default they\'re automatically enabled when the "Limit allowed HTML tags and correct faulty HTML" filter is not active. This setting allows to hide those buttons when filter is disabled')
     ];
 
     return $form;
@@ -383,6 +391,8 @@ class LayoutTable extends CKEditor5PluginDefault implements ContainerFactoryPlug
       'text_alignment' => $default_table_cell_properties['text_alignment'],
       'vertical_alignment' => $default_table_cell_properties['vertical_alignment'],
     ];
+
+    $this->configuration['disable_properties'] = (bool)$form_state->getValue('disable_properties');
   }
 
   /**
@@ -492,6 +502,8 @@ class LayoutTable extends CKEditor5PluginDefault implements ContainerFactoryPlug
     else {
       $static_plugin_config['table']['tableCellProperties']['colorPicker']['format'] = $color_picker;
     }
+
+    $static_plugin_config['table']['disableProperties'] = $this->configuration['disable_properties'] ?? FALSE;
 
     return $static_plugin_config;
   }

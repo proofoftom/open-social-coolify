@@ -1,0 +1,8 @@
+social_ai_indexing.ai_overview:
+  path: '/api/ai/overview'
+  defaults:
+    _controller: '\Drupal\social_ai_indexing\Controller\AiOverviewController::overview'
+    _title: 'AI Overview'
+  methods: [GET]
+  requirements:
+    _permission: 'access content'

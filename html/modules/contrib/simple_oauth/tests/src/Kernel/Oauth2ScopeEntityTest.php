@@ -40,7 +40,6 @@ class Oauth2ScopeEntityTest extends KernelTestBase {
   protected function setUp(): void {
     parent::setUp();
 
-    $this->installSchema('system', ['sequences']);
     $this->installEntitySchema('oauth2_scope');
 
     $this->granularityManager = $this->container->get('plugin.manager.scope_granularity');

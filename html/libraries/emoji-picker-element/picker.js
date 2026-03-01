@@ -37,6 +37,8 @@ function hasZwj (emoji) {
 // "face without mouth" plus "fog".) These emoji can only be filtered using the width test,
 // which happens in checkZwjSupport.js.
 const versionsAndTestEmoji = {
+  '🫪': 17, // distorted face
+  '🫩': 16, // face with bags under eyes
   '🫨': 15.1, // shaking head, technically from v15 but see note above
   '🫠': 14,
   '🥲': 13.1, // smiling face with tear, technically from v13 but see note above
@@ -300,9 +302,22 @@ let baselineEmojiWidth;
  */
 function checkZwjSupport (zwjEmojisToCheck, baselineEmoji, emojiToDomNode) {
   let allSupported = true;
+  let shouldWarn = false;
   for (const emoji of zwjEmojisToCheck) {
     const domNode = emojiToDomNode(emoji);
+    // sanity check to make sure the node is defined properly
+    /* istanbul ignore if */
+    if (!domNode) {
+      // This is a race condition that can occur when the component is unmounted/remounted
+      // It doesn't really matter what we do here since the old context is not going to render anymore.
+      // Just bail out of emoji support detection and return `allSupported=true` since the rendering context is gone
+      continue
+    }
     const emojiWidth = calculateTextWidth(domNode);
+    /* istanbul ignore if */
+    if (emojiWidth === 0) {
+      shouldWarn = true;
+    }
     if (typeof baselineEmojiWidth === 'undefined') { // calculate the baseline emoji width only once
       baselineEmojiWidth = calculateTextWidth(baselineEmoji);
     }
@@ -316,6 +331,15 @@ function checkZwjSupport (zwjEmojisToCheck, baselineEmoji, emojiToDomNode) {
     if (!supported) {
       allSupported = false;
     }
+  }
+  // Warn exactly once since we don't want to spam the console
+  /* istanbul ignore if */
+  if (shouldWarn) {
+    console.warn('Emoji support detection failed - emoji character is 0 width.\n' +
+      'This is likely due to using `display:none` which is unsupported.\n' +
+      'If this is a Jest/Vitest environment, you can ignore this warning.\n' +
+      'For details see: https://github.com/nolanlawson/emoji-picker-element/issues/514'
+    );
   }
   return allSupported
 }
@@ -433,7 +457,14 @@ function patch (expressions, instanceBindings) {
     instanceBinding.currentExpression = expression;
 
     if (attributeName) { // attribute replacement
-      targetNode.setAttribute(attributeName, attributeValuePre + toString(expression) + attributeValuePost);
+      if (expression === null) {
+        // null is treated as a special case by the framework - we don't render an attribute at all in this case
+        targetNode.removeAttribute(attributeName);
+      } else {
+        // attribute value is not null; set a new attribute
+        const newValue = attributeValuePre + toString(expression) + attributeValuePost;
+        targetNode.setAttribute(attributeName, newValue);
+      }
     } else { // text node / child element / children replacement
       let newNode;
       if (Array.isArray(expression)) { // array of DOM elements produced by tag template literals
@@ -463,9 +494,10 @@ function parse (tokens) {
   const elementsToBindings = new Map();
   const elementIndexes = [];
 
+  let skipTokenChars = 0;
   for (let i = 0, len = tokens.length; i < len; i++) {
     const token = tokens[i];
-    htmlString += token;
+    htmlString += token.slice(skipTokenChars);
 
     if (i === len - 1) {
       break // no need to process characters - no more expressions to be found
@@ -505,10 +537,17 @@ function parse (tokens) {
     let attributeValuePost;
     if (withinAttribute) {
       // I never use single-quotes for attribute values in HTML, so just support double-quotes or no-quotes
-      const match = /(\S+)="?([^"=]*)$/.exec(token);
-      attributeName = match[1];
-      attributeValuePre = match[2];
-      attributeValuePost = /^[^">]*/.exec(tokens[i + 1])[0];
+      const attributePreMatch = /(\S+)="?([^"=]*)$/.exec(token);
+      attributeName = attributePreMatch[1];
+      attributeValuePre = attributePreMatch[2];
+      const attributePostMatch = /^([^">]*)("?)/.exec(tokens[i + 1]);
+      attributeValuePost = attributePostMatch[1];
+      // Optimization: remove the attribute itself, so we don't create a default attribute which is either empty or just
+      // the "pre" text, e.g. `<div foo>` or `<div foo="prefix">`. It will be replaced by the expression anyway.
+      htmlString = htmlString.slice(0, -1 * attributePreMatch[0].length);
+      skipTokenChars = attributePostMatch[0].length;
+    } else {
+      skipTokenChars = 0;
     }
 
     const binding = {
@@ -626,11 +665,11 @@ function render (container, state, helpers, events, actions, refs, abortSignal, 
 
   function emojiList (emojis, searchMode, prefix) {
     return map(emojis, (emoji, i) => {
-      return html`<button role="${searchMode ? 'option' : 'menuitem'}" aria-selected="${searchMode ? i === state.activeSearchItem : ''}" aria-label="${labelWithSkin(emoji, state.currentSkinTone)}" title="${titleForEmoji(emoji)}" class="${
+      return html`<button role="${searchMode ? 'option' : 'menuitem'}" aria-selected="${searchMode ? i === state.activeSearchItem : null}" aria-label="${labelWithSkin(emoji, state.currentSkinTone)}" title="${titleForEmoji(emoji)}" class="${
                 'emoji' +
                 (searchMode && i === state.activeSearchItem ? ' active' : '') +
                 (emoji.unicode ? '' : ' custom-emoji')
-              }" id="${`${prefix}-${emoji.id}`}" style="${emoji.unicode ? '' : `--custom-emoji-background: url(${JSON.stringify(emoji.url)})`}">${
+              }" id="${`${prefix}-${emoji.id}`}" style="${emoji.unicode ? null : `--custom-emoji-background: url(${JSON.stringify(emoji.url)})`}">${
         emoji.unicode
           ? unicodeWithSkin(emoji, state.currentSkinTone)
           : ''
@@ -641,7 +680,7 @@ function render (container, state, helpers, events, actions, refs, abortSignal, 
   }
 
   const section = () => {
-    return html`<section data-ref="rootElement" class="picker" aria-label="${state.i18n.regionLabel}" style="${state.pickerStyle || ''}"><div class="pad-top"></div><div class="search-row"><div class="search-wrapper"><input id="search" class="search" type="search" role="combobox" enterkeyhint="search" placeholder="${state.i18n.searchLabel}" autocapitalize="none" autocomplete="off" spellcheck="true" aria-expanded="${!!(state.searchMode && state.currentEmojis.length)}" aria-controls="search-results" aria-describedby="search-description" aria-autocomplete="list" aria-activedescendant="${state.activeSearchItemId ? `emo-${state.activeSearchItemId}` : ''}" data-ref="searchElement" data-on-input="onSearchInput" data-on-keydown="onSearchKeydown"><label class="sr-only" for="search">${state.i18n.searchLabel}</label> <span id="search-description" class="sr-only">${state.i18n.searchDescription}</span></div><div class="skintone-button-wrapper ${state.skinTonePickerExpandedAfterAnimation ? 'expanded' : ''}"><button id="skintone-button" class="emoji ${state.skinTonePickerExpanded ? 'hide-focus' : ''}" aria-label="${state.skinToneButtonLabel}" title="${state.skinToneButtonLabel}" aria-describedby="skintone-description" aria-haspopup="listbox" aria-expanded="${state.skinTonePickerExpanded}" aria-controls="skintone-list" data-on-click="onClickSkinToneButton">${state.skinToneButtonText || ''}</button></div><span id="skintone-description" class="sr-only">${state.i18n.skinToneDescription}</span><div data-ref="skinToneDropdown" id="skintone-list" class="skintone-list hide-focus ${state.skinTonePickerExpanded ? '' : 'hidden no-animate'}" style="transform:translateY(${state.skinTonePickerExpanded ? 0 : 'calc(-1 * var(--num-skintones) * var(--total-emoji-size))'})" role="listbox" aria-label="${state.i18n.skinTonesLabel}" aria-activedescendant="skintone-${state.activeSkinTone}" aria-hidden="${!state.skinTonePickerExpanded}" tabIndex="-1" data-on-focusout="onSkinToneOptionsFocusOut" data-on-click="onSkinToneOptionsClick" data-on-keydown="onSkinToneOptionsKeydown" data-on-keyup="onSkinToneOptionsKeyup">${
+    return html`<section data-ref="rootElement" class="picker" aria-label="${state.i18n.regionLabel}" style="${state.pickerStyle || ''}"><div class="pad-top"></div><div class="search-row"><div class="search-wrapper"><input id="search" class="search" type="search" role="combobox" enterkeyhint="search" placeholder="${state.i18n.searchLabel}" autocapitalize="none" autocomplete="off" spellcheck="true" aria-expanded="${!!(state.searchMode && state.currentEmojis.length)}" aria-controls="search-results" aria-describedby="search-description" aria-autocomplete="list" aria-activedescendant="${state.activeSearchItemId ? `emo-${state.activeSearchItemId}` : null}" data-ref="searchElement" data-on-input="onSearchInput" data-on-keydown="onSearchKeydown"><label class="sr-only" for="search">${state.i18n.searchLabel}</label> <span id="search-description" class="sr-only">${state.i18n.searchDescription}</span></div><div class="skintone-button-wrapper ${state.skinTonePickerExpandedAfterAnimation ? 'expanded' : ''}"><button id="skintone-button" class="emoji ${state.skinTonePickerExpanded ? 'hide-focus' : ''}" aria-label="${state.skinToneButtonLabel}" title="${state.skinToneButtonLabel}" aria-describedby="skintone-description" aria-haspopup="listbox" aria-expanded="${state.skinTonePickerExpanded}" aria-controls="skintone-list" data-on-click="onClickSkinToneButton">${state.skinToneButtonText || ''}</button></div><span id="skintone-description" class="sr-only">${state.i18n.skinToneDescription}</span><div data-ref="skinToneDropdown" id="skintone-list" class="skintone-list hide-focus ${state.skinTonePickerExpanded ? '' : 'hidden no-animate'}" style="transform:translateY(${state.skinTonePickerExpanded ? 0 : 'calc(-1 * var(--num-skintones) * var(--total-emoji-size))'})" role="listbox" aria-label="${state.i18n.skinTonesLabel}" aria-activedescendant="skintone-${state.activeSkinTone}" aria-hidden="${!state.skinTonePickerExpanded}" tabIndex="-1" data-on-focusout="onSkinToneOptionsFocusOut" data-on-click="onSkinToneOptionsClick" data-on-keydown="onSkinToneOptionsKeydown" data-on-keyup="onSkinToneOptionsKeyup">${
     map(state.skinTones, (skinTone, i) => {
     return html`<div id="skintone-${i}" class="emoji ${i === state.activeSkinTone ? 'active' : ''}" aria-selected="${i === state.activeSkinTone}" role="option" title="${state.i18n.skinTones[i]}" aria-label="${state.i18n.skinTones[i]}">${skinTone}</div>`
     }, skinTone => skinTone)
@@ -649,7 +688,7 @@ function render (container, state, helpers, events, actions, refs, abortSignal, 
             map(state.groups, (group) => {
               return html`<button role="tab" class="nav-button" aria-controls="tab-${group.id}" aria-label="${state.i18n.categories[group.name]}" aria-selected="${!state.searchMode && state.currentGroup.id === group.id}" title="${state.i18n.categories[group.name]}" data-group-id="${group.id}"><div class="nav-emoji emoji">${group.emoji}</div></button>`
             }, group => group.id)
-          }</div><div class="indicator-wrapper"><div class="indicator" style="transform:translateX(${(/* istanbul ignore next */ (state.isRtl ? -1 : 1)) * state.currentGroupIndex * 100}%)"></div></div><div class="message ${state.message ? '' : 'gone'}" role="alert" aria-live="polite">${state.message || ''}</div><div data-ref="tabpanelElement" class="tabpanel ${(!state.databaseLoaded || state.message) ? 'gone' : ''}" role="${state.searchMode ? 'region' : 'tabpanel'}" aria-label="${state.searchMode ? state.i18n.searchResultsLabel : state.i18n.categories[state.currentGroup.name]}" id="${state.searchMode ? '' : `tab-${state.currentGroup.id}`}" tabIndex="0" data-on-click="onEmojiClick"><div data-action="calculateEmojiGridStyle">${
+          }</div><div class="indicator-wrapper"><div class="indicator" style="transform:translateX(${(/* istanbul ignore next */ (state.isRtl ? -1 : 1)) * state.currentGroupIndex * 100}%)"></div></div><div class="message ${state.message ? '' : 'gone'}" role="alert" aria-live="polite">${state.message || ''}</div><div data-ref="tabpanelElement" class="tabpanel ${(!state.databaseLoaded || state.message) ? 'gone' : ''}" role="${state.searchMode ? 'region' : 'tabpanel'}" aria-label="${state.searchMode ? state.i18n.searchResultsLabel : state.i18n.categories[state.currentGroup.name]}" id="${state.searchMode ? null : `tab-${state.currentGroup.id}`}" tabIndex="0" data-on-click="onEmojiClick"><div data-action="calculateEmojiGridStyle">${
               map(state.currentEmojisWithCategories, (emojiWithCategory, i) => {
                 return html`<div><div id="menu-label-${i}" class="category ${state.currentEmojisWithCategories.length === 1 && state.currentEmojisWithCategories[0].category === '' ? 'gone' : ''}" aria-hidden="true">${
                   state.searchMode
@@ -663,7 +702,7 @@ function render (container, state, helpers, events, actions, refs, abortSignal, 
                             : state.i18n.categories[state.currentGroup.name]
                         )
                     )
-                }</div><div class="emoji-menu ${i !== 0 && !state.searchMode && state.currentGroup.id === -1 ? 'visibility-auto' : ''}" style="${`--num-rows: ${Math.ceil(emojiWithCategory.emojis.length / state.numColumns)}`}" data-action="updateOnIntersection" role="${state.searchMode ? 'listbox' : 'menu'}" aria-labelledby="menu-label-${i}" id="${state.searchMode ? 'search-results' : ''}">${
+                }</div><div class="emoji-menu ${i !== 0 && !state.searchMode && state.currentGroup.id === -1 ? 'visibility-auto' : ''}" style="${`--num-rows: ${Math.ceil(emojiWithCategory.emojis.length / state.numColumns)}`}" data-action="updateOnIntersection" role="${state.searchMode ? 'listbox' : 'menu'}" aria-labelledby="menu-label-${i}" id="${state.searchMode ? 'search-results' : null}">${
               emojiList(emojiWithCategory.emojis, state.searchMode, /* prefix */ 'emo')
             }</div></div>`
               }, emojiWithCategory => emojiWithCategory.category)
@@ -1432,25 +1471,32 @@ function createRoot (shadowRoot, props) {
     }
   }
 
-  //
-  // Handle user input on an emoji
-  //
-
-  async function clickEmoji (unicodeOrName) {
+  async function getDetailForClickEvent (unicodeOrName) {
     const emoji = await state.database.getEmojiByUnicodeOrName(unicodeOrName);
     const emojiSummary = [...state.currentEmojis, ...state.currentFavorites]
       .find(_ => (_.id === unicodeOrName));
     const skinTonedUnicode = emojiSummary.unicode && unicodeWithSkin(emojiSummary, state.currentSkinTone);
     await state.database.incrementFavoriteEmojiCount(unicodeOrName);
-    fireEvent('emoji-click', {
+    return {
       emoji,
       skinTone: state.currentSkinTone,
       ...(skinTonedUnicode && { unicode: skinTonedUnicode }),
       ...(emojiSummary.name && { name: emojiSummary.name })
-    });
+    }
   }
 
-  async function onEmojiClick (event) {
+  //
+  // Handle user input on an emoji
+  //
+  async function clickEmoji (unicodeOrName) {
+    const promiseForDetail = getDetailForClickEvent(unicodeOrName);
+    // sync event to work around a safari bug: https://bugs.webkit.org/show_bug.cgi?id=222262
+    fireEvent('emoji-click-sync', promiseForDetail);
+    // async event for most normal use cases that don't need to work around the safari bug
+    fireEvent('emoji-click', await promiseForDetail);
+  }
+
+  function onEmojiClick (event) {
     const { target } = event;
     /* istanbul ignore if */
     if (!target.classList.contains('emoji')) {
@@ -1664,6 +1710,7 @@ class PickerElement extends HTMLElement {
   }
 
   connectedCallback () {
+    rescueElementPrototype(this);
     // The _cmp may be defined if the component was immediately disconnected and then reconnected. In that case,
     // do nothing (preserve the state)
     if (!this._cmp) {
@@ -1672,6 +1719,7 @@ class PickerElement extends HTMLElement {
   }
 
   disconnectedCallback () {
+    rescueElementPrototype(this);
     // Check in a microtask if the element is still connected. If so, treat this as a "move" rather than a disconnect
     // Inspired by Vue: https://vuejs.org/guide/extras/web-components.html#building-custom-elements-with-vue
     qM(() => {
@@ -1752,9 +1800,18 @@ for (const prop of PROPS) {
 
 Object.defineProperties(PickerElement.prototype, definitions);
 
+// See https://jakearchibald.com/2025/firefox-custom-elements-iframes-bug/
+// TODO: remove when the Firefox bug is fixed: https://bugzilla.mozilla.org/show_bug.cgi?id=1502814
+function rescueElementPrototype (element) {
+  /* istanbul ignore if */
+  if (!(element instanceof PickerElement)) {
+    Object.setPrototypeOf(element, customElements.get(element.tagName.toLowerCase()).prototype);
+  }
+}
+
 /* istanbul ignore else */
 if (!customElements.get('emoji-picker')) { // if already defined, do nothing (e.g. same script imported twice)
   customElements.define('emoji-picker', PickerElement);
 }
 
-export { PickerElement as default };
+export { PickerElement as default, rescueElementPrototype };

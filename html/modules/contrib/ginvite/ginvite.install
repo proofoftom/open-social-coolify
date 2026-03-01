@@ -5,9 +5,131 @@
  * Install, update and uninstall functions for the ginvite module.
  */
 
+use Drupal\group\Entity\GroupRole;
+
 /**
  * Implements hook_update_last_removed().
  */
 function ginvite_update_last_removed() {
   return 8003;
+}
+
+/**
+ * Provide bulk permissions if a user already has invite permissions.
+ */
+function ginvite_update_8004(&$sandbox) {
+  // Set up the batch by retrieving all of the group role IDs.
+  if (!isset($sandbox['progress'])) {
+    $sandbox['ids'] = \Drupal::service('entity_type.manager')
+      ->getStorage('group_role')
+      ->getQuery()
+      ->accessCheck(FALSE)
+      ->execute();
+    $sandbox['max'] = count($sandbox['ids']);
+    $sandbox['progress'] = 0;
+  }
+
+  $invite_permission = 'invite users to group';
+  $bulk_invite_permission = 'bulk invite users to group';
+  $administer_user_permission = 'administer members';
+  $administer_group_invitation_permission = 'administer group invitations';
+
+  // Try to update 25 group role entities at a time.
+  $ids = array_slice($sandbox['ids'], $sandbox['progress'], 25);
+
+  /** @var \Drupal\group\Entity\GroupRoleInterface $group_role */
+  foreach (GroupRole::loadMultiple($ids) as $group_role) {
+    $has_change = FALSE;
+    // Set bulk permission, if invite permission is found.
+    $permissions = $group_role->getPermissions();
+    if (in_array($invite_permission, $permissions)) {
+      $has_change = TRUE;
+      $group_role->grantPermission($bulk_invite_permission);
+    }
+    if (in_array($administer_user_permission, $permissions)) {
+      $has_change = TRUE;
+      $group_role->grantPermission($administer_group_invitation_permission);
+    }
+
+    if ($has_change) {
+      $group_role->save();
+    }
+
+    $sandbox['progress']++;
+  }
+
+  // Try to update the percentage but avoid division by zero.
+  $sandbox['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+
+  // Show a status update for the current progress.
+  return t('Updated the permissions for @progress out of @max group role entities.', [
+    '@progress' => $sandbox['progress'],
+    '@max' => $sandbox['max'],
+  ]);
+}
+
+/**
+ * Provide bulk permissions.
+ *
+ * If a user already has invite permissions in group permissions.
+ */
+function ginvite_update_8005(&$sandbox) {
+  if (!\Drupal::moduleHandler()->moduleExists('group_permissions')) {
+    return;
+  }
+  $storage = \Drupal::service('entity_type.manager')->getStorage('group_permission');
+
+  // Set up the batch by retrieving all of the group permission IDs.
+  if (!isset($sandbox['progress'])) {
+    $sandbox['ids'] = $storage
+      ->getQuery()
+      ->accessCheck(FALSE)
+      ->execute();
+    $sandbox['max'] = count($sandbox['ids']);
+    $sandbox['progress'] = 0;
+  }
+
+  $invite_permission = 'invite users to group';
+  $administer_user_permission = 'administer members';
+  $administer_group_invitation_permission = 'administer group invitations';
+  $bulk_invite_permission = 'bulk invite users to group';
+
+  // Try to update 25 group role entities at a time.
+  $ids = array_slice($sandbox['ids'], $sandbox['progress'], 25);
+
+  /** @var \Drupal\group_permissions\Entity\GroupPermission $group_permission */
+  foreach ($storage->loadMultiple($ids) as $group_permission) {
+    // Set bulk permission, if invite permission is found.
+    $custom_permissions = $group_permission->getPermissions();
+    $has_change = FALSE;
+    foreach ($custom_permissions as $role_id => $permissions) {
+      if (in_array($invite_permission, $permissions)) {
+        $has_change = TRUE;
+        $custom_permissions[$role_id][] = $bulk_invite_permission;
+      }
+      if (in_array($administer_user_permission, $permissions)) {
+        $has_change = TRUE;
+        $custom_permissions[$role_id][] = $administer_group_invitation_permission;
+      }
+    }
+
+    if ($has_change) {
+      $group_permission->setPermissions($custom_permissions);
+      $violations = $group_permission->validate();
+      if (count($violations) == 0) {
+        $group_permission->save();
+      }
+    }
+
+    $sandbox['progress']++;
+  }
+
+  // Try to update the percentage but avoid division by zero.
+  $sandbox['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+
+  // Show a status update for the current progress.
+  return t('Updated the permissions for @progress out of @max group permission entities.', [
+    '@progress' => $sandbox['progress'],
+    '@max' => $sandbox['max'],
+  ]);
 }

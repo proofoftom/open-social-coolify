@@ -1,7 +1,11 @@
 services:
   consumer.negotiator:
     class: Drupal\consumers\Negotiator
-    arguments: ['@request_stack', !service_closure '@logger.channel.consumers', '@entity_type.manager', '@cache.default']
+    arguments:
+      - '@request_stack'
+      - '@logger.channel.consumers'
+      - '@entity_type.manager'
+      - '@cache.default'
   consumer.consumer.route_enhancer:
     class: Drupal\consumers\ConsumerRouteEnhancer
     public: false

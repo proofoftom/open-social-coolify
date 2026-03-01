@@ -7,10 +7,13 @@ use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\consumers\Entity\Consumer;
+use Drupal\Core\Session\PermissionCheckerInterface;
 use Drupal\simple_oauth\Entity\Oauth2TokenInterface;
 use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 use League\OAuth2\Server\Exception\OAuthServerException;
+use Symfony\Bridge\PsrHttpMessage\HttpMessageFactoryInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * The decorated user class with token information.
@@ -27,13 +30,6 @@ class TokenAuthUser implements TokenAuthUserInterface {
   protected $subject;
 
   /**
-   * The bearer token.
-   *
-   * @var \Drupal\simple_oauth\Entity\Oauth2TokenInterface
-   */
-  protected Oauth2TokenInterface $token;
-
-  /**
    * The activated consumer instance.
    *
    * @var \Drupal\consumers\Entity\Consumer
@@ -43,24 +39,33 @@ class TokenAuthUser implements TokenAuthUserInterface {
   /**
    * Constructs a TokenAuthUser object.
    *
+   * @param \Drupal\Core\Session\PermissionCheckerInterface $permissionChecker
+   *   The permission checker service.
    * @param \Drupal\simple_oauth\Entity\Oauth2TokenInterface $token
    *   The underlying token.
+   * @param \Symfony\Bridge\PsrHttpMessage\HttpMessageFactoryInterface $httpMessageFactory
+   *   The HTTP message factory.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
+   *   The request stack.
    *
    * @throws \League\OAuth2\Server\Exception\OAuthServerException
    *   When there is no user.
    */
-  public function __construct(Oauth2TokenInterface $token) {
+  public function __construct(
+    protected readonly PermissionCheckerInterface $permissionChecker,
+    protected readonly Oauth2TokenInterface $token,
+    protected readonly HttpMessageFactoryInterface $httpMessageFactory,
+    protected readonly RequestStack $requestStack,
+  ) {
     $this->consumer = $token->get('client')->entity;
 
     if (!$this->subject = $token->get('auth_user_id')->entity) {
       $this->subject = $this->consumer->get('user_id')->entity;
     }
     if (!$this->subject) {
-      $server_request = \Drupal::service('psr7.http_message_factory')
-        ->createRequest(\Drupal::request());
+      $server_request = $httpMessageFactory->createRequest($requestStack->getCurrentRequest());
       throw OAuthServerException::invalidClient($server_request);
     }
-    $this->token = $token;
   }
 
   /**
@@ -80,19 +85,34 @@ class TokenAuthUser implements TokenAuthUserInterface {
   /**
    * {@inheritdoc}
    */
+  public function getSubject(): UserInterface {
+    return $this->subject;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function hasPermission($permission) {
-    // When the 'auth_user_id' isn't available on the token (which can happen
-    // with the 'client credentials' grant type):
-    // has permission checks are then only performed on the scopes.
-    if ($this->token->get('auth_user_id')->isEmpty()) {
-      return $this->token->hasPermission($permission);
-    }
-    // User #1 has all permissions.
-    if ((int) $this->id() === 1) {
-      return TRUE;
+    if (!is_string($permission)) {
+      @trigger_error('Calling ' . __METHOD__ . '() with a $permission parameter of type other than string is deprecated in drupal:10.3.0 and will cause an error in drupal:11.0.0. See https://www.drupal.org/node/3411485', E_USER_DEPRECATED);
+      return FALSE;
     }
 
-    return $this->token->hasPermission($permission) && $this->subject->hasPermission($permission);
+    return $this->permissionChecker->hasPermission($permission, $this);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getRoles($exclude_locked_roles = FALSE) {
+    $default_roles = [];
+    if (!$exclude_locked_roles) {
+      $default_roles[] = $this->isAuthenticated() ? self::AUTHENTICATED_ROLE : self::ANONYMOUS_ROLE;
+    }
+
+    $token_roles = array_unique(array_merge($this->token->getRoles($exclude_locked_roles), $default_roles));
+    $user_roles = $this->subject->getRoles($exclude_locked_roles);
+    return array_intersect($token_roles, $user_roles);
   }
 
   /* ---------------------------------------------------------------------------
@@ -118,13 +138,6 @@ class TokenAuthUser implements TokenAuthUserInterface {
    */
   public function isAnonymous() {
     return $this->subject->isAnonymous();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getRoles($exclude_locked_roles = FALSE) {
-    return $this->subject->getRoles($exclude_locked_roles);
   }
 
   /**
@@ -924,6 +937,13 @@ class TokenAuthUser implements TokenAuthUserInterface {
    */
   public function setOriginal(?EntityInterface $original): static {
     return $this->subject->setOriginal($original);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getBundleEntity(): ?EntityInterface {
+    return $this->subject->getBundleEntity();
   }
 
 }

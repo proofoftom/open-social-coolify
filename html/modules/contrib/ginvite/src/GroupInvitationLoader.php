@@ -113,7 +113,7 @@ class GroupInvitationLoader implements GroupInvitationLoaderInterface {
   /**
    * {@inheritdoc}
    */
-  public function loadByUser(AccountInterface $account = NULL, $roles = NULL, $status = GroupInvitation::INVITATION_PENDING) {
+  public function loadByUser(?AccountInterface $account = NULL, $roles = NULL, $status = GroupInvitation::INVITATION_PENDING) {
     if (!isset($account)) {
       $account = $this->currentUser;
     }

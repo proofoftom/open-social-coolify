@@ -61,6 +61,13 @@ class TestGranularity extends ScopeGranularityBase {
   /**
    * {@inheritdoc}
    */
+  public function getPermissions(): array {
+    return [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $form['min_length'] = [
       '#type' => 'number',

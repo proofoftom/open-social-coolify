@@ -9,11 +9,11 @@ use Drupal\simple_oauth\Service\Filesystem\FilesystemValidator;
 use Drupal\simple_oauth\Service\Filesystem\FilesystemValidatorInterface;
 
 /**
- * Provides a service to generate the signature keys.
+ * The default implementation of the key generator service.
  *
  * @internal
  */
-class KeyGeneratorService {
+class KeyGeneratorService implements KeyGeneratorServiceInterface {
 
   /**
    * The filesystem service.
@@ -51,16 +51,7 @@ class KeyGeneratorService {
   }
 
   /**
-   * Generate both public key and private key on the given paths.
-   *
-   * If no public path is given, then the private path is going to be use for
-   * both keys.
-   *
-   * @param string $dir_path
-   *   Private key path.
-   *
-   * @throws \Drupal\simple_oauth\Service\Exception\ExtensionNotLoadedException
-   * @throws \Drupal\simple_oauth\Service\Exception\FilesystemValidationException
+   * {@inheritdoc}
    */
   public function generateKeys(string $dir_path): void {
     // Create path array.

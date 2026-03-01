@@ -1,0 +1,5 @@
+ai_usage_limits.settings:
+  title: 'AI Usage Limits'
+  description: 'Configure token usage limits for AI providers.'
+  parent: ai.admin_settings
+  route_name: ai_usage_limits.settings

@@ -18,15 +18,6 @@ class GroupInviteExpireTest extends GroupBrowserTestBase {
   use StringTranslationTrait;
 
   /**
-   * {@inheritdoc}
-   */
-  protected static $modules = [
-    'group',
-    'group_test_config',
-    'ginvite',
-  ];
-
-  /**
    * The group we will use to test methods on.
    *
    * @var \Drupal\group\Entity\Group
@@ -39,6 +30,15 @@ class GroupInviteExpireTest extends GroupBrowserTestBase {
    * @var \Drupal\Core\Cron
    */
   protected $cron;
+
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = [
+    'group',
+    'group_test_config',
+    'ginvite',
+  ];
 
   /**
    * Gets the global (site) permissions for the group creator.
@@ -61,6 +61,8 @@ class GroupInviteExpireTest extends GroupBrowserTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+
+    $this->setUpAccount();
 
     $this->group = $this->createGroup([
       'uid' => $this->groupCreator->id(),
@@ -86,6 +88,7 @@ class GroupInviteExpireTest extends GroupBrowserTestBase {
   public function testExpireInvites() {
     $this->drupalLogin($this->groupCreator);
     $expire_days = 14;
+    $this->group->addMember($this->groupCreator);
 
     // Install and configure the Group Invitation plugin.
     $this->drupalGet('/admin/group/content/install/default/group_invitation');
@@ -93,17 +96,15 @@ class GroupInviteExpireTest extends GroupBrowserTestBase {
     $this->submitForm(['invitation_expire' => $expire_days], 'Install plugin');
     $this->assertSession()->statusCodeEquals(200);
 
-    // @todo get rid of this cache clear. But without it the group invitation
-    // plugin config doesn't seem to be available.
     drupal_flush_all_caches();
 
     // Create an invitation.
-    $this->drupalGet('/group/1/content/add/group_invitation');
+    $this->drupalGet("/group/{$this->group->id()}/content/add/group_invitation");
     $this->submitForm(['invitee_mail[0][value]' => 'test@test.local'], 'Save');
     $this->assertSession()->statusCodeEquals(200);
 
-    // Create another invite.
-    $this->drupalGet('/group/1/content/add/group_invitation');
+    // Create another invitation.
+    $this->drupalGet("/group/{$this->group->id()}/content/add/group_invitation");
     $this->submitForm(['invitee_mail[0][value]' => 'test2@test.local'], 'Save');
     $this->assertSession()->statusCodeEquals(200);
 

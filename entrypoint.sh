@@ -26,6 +26,15 @@ if [ -n "${SOLR_HOST:-}" ] && [ -n "${SOLR_PORT:-}" ]; then
     echo "Solr is available!"
 fi
 
+# Wait for Qdrant if configured
+if [ -n "${QDRANT_HOST:-}" ] && [ -n "${QDRANT_PORT:-}" ]; then
+    echo "Waiting for Qdrant at ${QDRANT_HOST}:${QDRANT_PORT}..."
+    while ! bash -c "echo > /dev/tcp/${QDRANT_HOST}/${QDRANT_PORT}" 2>/dev/null; do
+        sleep 1
+    done
+    echo "Qdrant is available!"
+fi
+
 # Create the database if it doesn't exist
 echo "Creating database if it doesn't exist..."
 mysql -h "${DB_HOST:-mariadb}" -P "${DB_PORT:-3306}" -u "root" -p"${DB_ROOT_PASSWORD:-rootpassword}" --skip-ssl -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME:-opensocial}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
@@ -140,7 +149,7 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
     # Run site install
     $DRUSH site:install social \
         --db-url="mysql://${DB_USER:-opensocial}:${DB_PASSWORD}@${DB_HOST:-mariadb}:${DB_PORT:-3306}/${DB_NAME:-opensocial}" \
-        --site-name="${DRUPAL_SITE_NAME:-Open Social}" \
+        --site-name="${DRUPAL_SITE_NAME:-LocalNodes}" \
         --account-name="${DRUPAL_ADMIN_USER:-admin}" \
         --account-pass="${DRUPAL_ADMIN_PASS:-admin}" \
         --account-mail="${DRUPAL_ADMIN_EMAIL:-admin@example.com}" \
@@ -161,10 +170,29 @@ if [ "$SITE_INSTALLED" != "Successful" ]; then
     echo "Enabling Search API Solr module..."
     $DRUSH en search_api_solr -y || echo "Failed to enable Search API Solr module"
 
-    echo "Installing demo content..."
-    $DRUSH en social_demo -y || echo "Failed to enable social_demo module"
-    $DRUSH cr || echo "Failed to clear cache"
+    # Enable LocalNodes Platform (installs AI stack config, Solr/Qdrant overrides)
+    echo "Enabling LocalNodes Platform..."
+    $DRUSH en localnodes_platform -y || echo "Failed to enable localnodes_platform"
+
+    # Enable instance-specific demo content module
+    DEMO_MODULE="${DEMO_MODULE:-localnodes_demo}"
+    echo "Enabling demo module: $DEMO_MODULE..."
+    $DRUSH en "$DEMO_MODULE" -y || echo "Failed to enable $DEMO_MODULE"
+
+    # Load demo content
+    echo "Loading demo content..."
     $DRUSH social-demo:add file user group topic event event_enrollment comment post like || echo "Failed to add demo content"
+
+    # Index content in Solr
+    echo "Indexing content in Solr..."
+    $DRUSH search-api:index || echo "Failed to index content"
+
+    # Run cron to trigger vector indexing queue
+    echo "Running cron for vector indexing..."
+    for i in 1 2 3; do
+        $DRUSH cron || echo "Cron run $i failed"
+        sleep 5
+    done
 
     echo "Enabling Web3 modules..."
     $DRUSH en siwe_login safe_smart_accounts group_treasury social_group_treasury -y || echo "Failed to enable Web3 modules"
@@ -214,7 +242,7 @@ if $DRUSH pm-list --field=status --filter='siwe_login' | grep -q "Enabled"; then
 
     # Try to get domain from SERVICE_FQDN_OPENSOCIAL (Coolify variable)
     if [ -n "${SERVICE_FQDN_OPENSOCIAL:-}" ]; then
-        SIWE_DOMAIN="$SERVICE_FQDN_OPENSOCIAL"
+        SIWE_DOMAIN=$(echo "$SERVICE_FQDN_OPENSOCIAL" | sed 's|https://||' | sed 's|http://||')
     # Fall back to extracting from COOLIFY_URL
     elif [ -n "${COOLIFY_URL:-}" ]; then
         SIWE_DOMAIN=$(echo "$COOLIFY_URL" | sed -e 's|^[^/]*//||' -e 's|/.*$||' -e 's|:.*$||')

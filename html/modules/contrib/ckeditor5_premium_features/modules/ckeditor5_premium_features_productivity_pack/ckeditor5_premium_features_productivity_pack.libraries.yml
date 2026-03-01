@@ -1,5 +1,5 @@
 document_outline.adapter:
-  version: 20240318
+  version: 20251230
   license:
     name: GNU-GPL-2.0-or-later
     url: https://raw.githubusercontent.com/ckeditor/ckeditor5/master/LICENSE.md

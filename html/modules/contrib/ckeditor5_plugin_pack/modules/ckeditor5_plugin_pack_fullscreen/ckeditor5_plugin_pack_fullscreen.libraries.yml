@@ -5,7 +5,7 @@ admin.fullscreen:
       css/fullscreen.admin.css: { }
 
 ckeditor5_plugin_pack_fullscreen__fullscreen:
-  version: 20250820
+  version: 20251230
   js:
      js/build/fullscreenAdapter.js: { }
   css:

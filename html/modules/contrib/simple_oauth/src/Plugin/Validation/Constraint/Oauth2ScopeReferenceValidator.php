@@ -42,7 +42,7 @@ class Oauth2ScopeReferenceValidator extends ConstraintValidator implements Conta
   /**
    * {@inheritdoc}
    */
-  public function validate($value, Constraint $constraint) {
+  public function validate($value, Constraint $constraint): void {
     $referenced_scope_ids = [];
 
     foreach ($value as $item) {

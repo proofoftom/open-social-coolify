@@ -18,6 +18,7 @@ class Oauth2ScopeProviderTestBase extends KernelTestBase {
    */
   protected static $modules = [
     'consumers',
+    'file',
     'image',
     'options',
     'serialization',
@@ -32,7 +33,7 @@ class Oauth2ScopeProviderTestBase extends KernelTestBase {
   protected function setUp(): void {
     parent::setUp();
 
-    $this->installSchema('system', ['sequences']);
+    $this->installEntitySchema('file');
     $this->installEntitySchema('consumer');
     $this->installConfig(['simple_oauth']);
     $this->installEntitySchema('user');

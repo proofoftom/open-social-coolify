@@ -6,7 +6,7 @@ core_version_requirement: ^10.3 || ^11.0
 dependencies:
   - ckeditor5_plugin_pack:ckeditor5_plugin_pack
 
-# Information added by Drupal.org packaging script on 2025-11-26
-version: '1.4.2'
+# Information added by Drupal.org packaging script on 2026-02-11
+version: '1.5.1'
 project: 'ckeditor5_plugin_pack'
-datestamp: 1764157221
+datestamp: 1770801205

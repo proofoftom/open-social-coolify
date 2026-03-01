@@ -9,7 +9,7 @@ use Drupal\role_delegation\DelegatableRolesInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Configure book settings for this site.
+ * Change roles assigned to a user.
  */
 class RoleDelegationSettingsForm extends FormBase {
 

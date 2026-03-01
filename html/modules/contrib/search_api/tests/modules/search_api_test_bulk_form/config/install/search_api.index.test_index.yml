@@ -11,6 +11,11 @@ field_settings:
         - search_api_test/foo
         - 'entity:entity_test/name'
         - 'entity:entity_test_string_id/name'
+  name:
+    label: Name
+    type: text
+    datasource_id: 'entity:entity_test'
+    property_path: name
 options:
   index_directly: true
 datasource_settings:

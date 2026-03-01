@@ -118,10 +118,9 @@ function role_delegation_user_load(array $entities) {
  * Implements hook_form_BASE_FORM_ID_alter().
  */
 function role_delegation_form_user_form_alter(array &$form, FormStateInterface $form_state, string $form_id) {
-  // Add an entity builder for the user entity to ensure that it recieves the
+  // Add an entity builder for the user entity to ensure that it receives the
   // "empty" value when the field is not accessible.
   if (isset($form['role_change'])) {
-    $form['role_change']['#group'] = 'account';
     $form['#entity_builders'][] = 'role_delegation_user_form_builder';
   }
 }
@@ -152,8 +151,8 @@ function role_delegation_options_list_alter(array &$options, array $context) {
   $field_definition = $context['fieldDefinition'];
 
   // By default, ALL the entities for a given type will be used for the options
-  // on an enity reference field, but we only want the user to be able to choose
-  // from the roles they can assign.
+  // on an entity reference field, but we only want the user to be able to
+  // choose from the roles they can assign.
   if ($field_definition->getTargetEntityTypeId() === 'user' && $field_definition->getName() === 'role_change') {
     $current_user = \Drupal::currentUser();
     $options = \Drupal::service('delegatable_roles')
@@ -209,13 +208,8 @@ function role_delegation_entity_field_access(string $operation, FieldDefinitionI
     }
 
     // Or if they don't have at least one role that allows them to delegate.
-    $permissions = \Drupal::service('permission_generator.role_delegation')
-      ->rolePermissions();
-    $permissions = array_merge(['assign all roles'], array_keys($permissions));
-    foreach ($permissions as $permission) {
-      if ($account->hasPermission($permission)) {
-        return AccessResult::allowed()->cachePerPermissions();
-      }
+    if (\Drupal::service('delegatable_roles')->getAssignableRoles($account)) {
+      return AccessResult::allowed()->cachePerPermissions();
     }
     return AccessResult::forbidden()->cachePerPermissions();
   }

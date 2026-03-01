@@ -6,7 +6,7 @@ core_version_requirement: ^10.3 || ^11
 dependencies:
   - drupal:user
 
-# Information added by Drupal.org packaging script on 2025-06-27
-version: '8.x-1.4'
+# Information added by Drupal.org packaging script on 2026-01-13
+version: '8.x-1.5'
 project: 'role_delegation'
-datestamp: 1751012873
+datestamp: 1768321632

@@ -1,5 +1,5 @@
 email-editing:
-  version: 20250812
+  version: 20260107
   license:
     name: GNU-GPL-2.0-or-later
     url: https://raw.githubusercontent.com/ckeditor/ckeditor5/master/LICENSE.md

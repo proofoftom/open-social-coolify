@@ -1,0 +1,57 @@
+ai_usage_limits.settings:
+  type: config_object
+  label: 'AI Usage Limits Settings'
+  mapping:
+    providers:
+      type: sequence
+      label: 'Providers'
+      sequence:
+        type: ai_usage_limits.settings.providers.[%key]
+      constraints:
+        Callback: ['\Drupal\ai_usage_limits\SchemaValidation', validateProviderKeys]
+    retention_days:
+      type: integer
+      label: 'Retention days'
+      constraints:
+        Range:
+          min: 1
+  constraints:
+    FullyValidatable: ~
+
+ai_usage_limits.settings.providers.*:
+  type: mapping
+  label: 'Settings'
+  mapping:
+    enable_limits:
+      type: boolean
+      label: 'Enable usage limits'
+    input_token_usage:
+      type: integer
+      label: 'Input token usage'
+      constraints:
+        Range:
+          min: 0
+    output_token_usage:
+      type: integer
+      label: 'Output token usage'
+      constraints:
+        Range:
+          min: 0
+    total_token_usage:
+      type: integer
+      label: 'Total token usage'
+      constraints:
+        Range:
+          min: 0
+    cached_token_usage:
+      type: integer
+      label: 'Cached token usage'
+      constraints:
+        Range:
+          min: 0
+    reasoning_token_usage:
+      type: integer
+      label: 'Reasoning token usage'
+      constraints:
+        Range:
+          min: 0

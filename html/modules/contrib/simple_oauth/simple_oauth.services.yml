@@ -24,6 +24,10 @@ services:
       - '@simple_oauth.page_cache_request_policy.disallow_oauth2_token_requests'
       - '@psr7.http_message_factory'
       - '@psr7.http_foundation_factory'
+      - '@path.validator'
+      - '@router.route_provider'
+      - '@request_stack'
+      - '@permission_checker'
     tags:
       - { name: authentication_provider, provider_id: oauth2, global: TRUE, priority: 35 }
   simple_oauth.page_cache_request_policy.disallow_oauth2_token_requests:
@@ -36,7 +40,23 @@ services:
     arguments:
       - '@Drupal\simple_oauth\EventSubscriber\ExceptionLoggingSubscriber.inner'
       - '@logger.channel.simple_oauth'
-
+  cache_context.oauth2_scopes:
+    class: Drupal\simple_oauth\Cache\Oauth2ScopeCacheContext
+    arguments: [ '@current_user' ]
+    tags:
+      - { name: cache.context }
+  access_policy.simple_oauth:
+    class: Drupal\simple_oauth\Access\Oauth2AccessPolicy
+    arguments: [ '@simple_oauth.oauth2_scope.provider', '@entity_type.manager' ]
+    tags:
+      - { name: access_policy }
+  simple_oauth.access_policy.user_roles:
+    class: Drupal\simple_oauth\Access\DecoratedUserRolesAccessPolicy
+    decorates: access_policy.user_roles
+    decoration_priority: 100
+    arguments: [ '@simple_oauth.access_policy.user_roles.inner', '@entity_type.manager' ]
+    tags:
+      - { name: access_policy }
   simple_oauth.normalizer.oauth2_token:
     class: Drupal\simple_oauth\Normalizer\TokenEntityNormalizer
     arguments: [ '@entity_type.manager' ]
@@ -106,6 +126,10 @@ services:
     class: Drupal\simple_oauth\HttpMiddleware\BasicAuthSwap
     tags:
       - { name: http_middleware }
+  Drupal\simple_oauth\TokenExpiryTriggerHandlerInterface:
+    class: Drupal\simple_oauth\TokenExpiryTriggerHandler
+    arguments: [ '@config.factory', '@simple_oauth.expired_collector', '@logger.channel.simple_oauth' ]
+
   # Keys Generator Services
   simple_oauth.filesystem_checker:
     class: Drupal\simple_oauth\Service\Filesystem\FileSystemChecker

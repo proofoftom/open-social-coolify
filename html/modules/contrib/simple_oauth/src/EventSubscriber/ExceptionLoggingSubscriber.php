@@ -58,7 +58,7 @@ class ExceptionLoggingSubscriber implements EventSubscriberInterface {
   /**
    * {@inheritDoc}
    */
-  public static function getSubscribedEvents() {
+  public static function getSubscribedEvents(): array {
     return CoreExceptionLoggingSubscriber::getSubscribedEvents();
   }
 

@@ -42,7 +42,6 @@ class Oauth2ScopeReferenceValidatorTest extends KernelTestBase {
   protected function setUp(): void {
     parent::setUp();
 
-    $this->installSchema('system', ['sequences']);
     $this->installEntitySchema('oauth2_scope');
     $this->installEntitySchema('entity_test');
     $this->installConfig(['simple_oauth']);

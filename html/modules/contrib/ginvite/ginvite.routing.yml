@@ -28,7 +28,7 @@ ginvite.invitation.bulk:
     _form: '\Drupal\ginvite\Form\BulkGroupInvitation'
     _title_callback: '\Drupal\ginvite\Controller\InvitationOperations::invitationTitle'
   requirements:
-    _group_permission: 'invite users to group'
+    _group_permission: 'bulk invite users to group+administer members+administer group invitations'
     _group_installed_content: 'group_invitation'
   options:
     parameters:
@@ -41,7 +41,7 @@ ginvite.invitation.bulk.confirm:
     _form: '\Drupal\ginvite\Form\BulkGroupInvitationConfirm'
     _title_callback: '\Drupal\ginvite\Controller\InvitationOperations::invitationTitle'
   requirements:
-    _group_permission: 'invite users to group'
+    _group_permission: 'bulk invite users to group+administer members+administer group invitations'
     _group_installed_content: 'group_invitation'
   options:
     parameters:

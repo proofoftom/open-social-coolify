@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -28,6 +28,25 @@
         );
       }
       editorContent = Drupal.CKEditor5PremiumFeatures.relativePathsProcessor(editorContent);
+
+      // Add alignment classes
+      const template = document.createElement("template");
+      template.innerHTML = editorContent;
+
+      const elements = template.content.querySelectorAll("[data-align]");
+      elements.forEach((element) => {
+        const align = element.dataset.align;
+        const map = {
+          left: "image-style-align-left",
+          center: "image-style-align-center",
+          right: "image-style-side"
+        }
+        const addClass = map[align];
+        element.classList.add("image");
+        element.classList.add(addClass);
+      });
+
+      editorContent = template.innerHTML;
 
       return editorContent;
     },

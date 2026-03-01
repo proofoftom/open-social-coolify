@@ -34,16 +34,28 @@ class EntityCollectorTest extends UnitTestCase {
 
   /**
    * @covers ::collectForClient
+   * @dataProvider providerIncludeRefresh
    */
-  public function testCollectForClient() {
+  public function testCollectForClient(bool $include_refresh) {
     [$expired_collector, $query] = $this->buildProphecies();
     $client = $this->prophesize(Consumer::class);
     $client->id()->willReturn(35);
     $query->condition('client', 35)->shouldBeCalledTimes(1);
-    $tokens = $expired_collector->collectForClient($client->reveal());
+    $query->condition('bundle', 'refresh_token', '!=')->shouldBeCalledTimes($include_refresh ? 0 : 1);
+    $tokens = $expired_collector->collectForClient($client->reveal(), $include_refresh);
     $this->assertEquals([1, 52], array_map(function ($entity) {
       return $entity->id();
     }, $tokens));
+  }
+
+  /**
+   * Provides test data for testCollectForClient().
+   */
+  public static function providerIncludeRefresh(): array {
+    return [
+      [FALSE],
+      [TRUE],
+    ];
   }
 
   /**
@@ -54,7 +66,7 @@ class EntityCollectorTest extends UnitTestCase {
     $account = $this->prophesize(AccountInterface::class);
     $account->id()->willReturn(22);
     $token_query->condition('auth_user_id', 22)->shouldBeCalledTimes(1);
-    $token_query->condition('bundle', 'refresh_token', '!=')->shouldBeCalledTimes(1);
+    $token_query->condition('bundle', 'refresh_token', '!=')->shouldBeCalledTimes(2);
     $client_storage->loadByProperties([
       'user_id' => 22,
     ])->shouldBeCalledTimes(1);

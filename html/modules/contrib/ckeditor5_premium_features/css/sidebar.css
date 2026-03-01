@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -73,7 +73,7 @@
 .ck-editor-container .ck-editor-sidebar-wrapper.wideSidebar .ck-sidebar-wrapper,
 .ck-editor-container .ck-editor-sidebar-wrapper.narrowSidebar .ck-sidebar-wrapper {
   background: var(--ck-color-toolbar-background);
-  border: 1px solid var(--ck-color-toolbar-border);
+  border: 1px solid var(--ck-color-base-border);
   border-left: 0;
   overflow: hidden;
   overflow-y: auto;
@@ -94,67 +94,33 @@ tr.draggable .ck-editor-sidebar-wrapper .ck-sidebar-wrapper {
   padding-bottom: 10px;
 }
 
-
-
 /*Toggle*/
 .ck-editor-sidebar-wrapper .ck-sidebar-auto-toggle-wrapper {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   position: absolute;
   top: 1px;
   background: transparent;
   z-index: 10;
 }
 
+.ck-sidebar-auto-toggle-wrapper .ck-icon {
+  width: 20px!important;
+  height: 20px!important;
+}
+
 .ck-editor-container .ck-editor-sidebar-wrapper.inline .ck-sidebar-auto-toggle-wrapper {
   display: none;
 }
-.ck-editor-sidebar-wrapper .ck-sidebar-auto-toggle-wrapper a.ck-sidebar-auto-toggle {
-  display: block;
-  width: 30px;
-  height: 30px;
-  transition: box-shadow .2s ease-in-out,border .2s ease-in-out
-}
-.ck-editor-sidebar-wrapper .ck-sidebar-auto-toggle-wrapper a.ck-sidebar-auto-toggle:active {
-  border: var(--ck-focus-ring);
-  box-shadow: var(--ck-focus-outer-shadow),0 0;
-  outline: none;
-}
-.ck-editor-sidebar-wrapper .ck-sidebar-auto-toggle-wrapper a.ck-sidebar-auto-toggle:hover {
-  background-color: rgba(0, 0, 0, 0.06);
-}
-.ck-editor-container .ck-editor-sidebar-wrapper.narrowSidebar .ck-sidebar-wrapper .ck-sidebar-auto-toggle-wrapper {
-  width: 100%;
-}
-.ck-editor-container .ck-editor-sidebar-wrapper.wideSidebar .ck-sidebar-wrapper .ck-sidebar-auto-toggle-wrapper {
+.ck-editor-container .ck-editor-sidebar-wrapper.wideSidebar .ck-sidebar-auto-toggle-wrapper {
   margin-left: -10px;
-}
-.ck-editor-container .ck-editor-sidebar-wrapper.narrowSidebar .ck-sidebar-auto-toggle-wrapper a.ck-sidebar-auto-toggle {
-  width: 30px;
-  margin: 0;
-}
-.ck-sidebar-wrapper a.ck-sidebar-auto-toggle:hover {
-  text-decoration: none;
-  cursor: pointer;
 }
 
 /*Toggle Icon*/
-.ck-editor-container .ck-editor-sidebar-wrapper.narrowSidebar a.ck-sidebar-auto-toggle::after,
-.ck-editor-container .ck-editor-sidebar-wrapper.wideSidebar a.ck-sidebar-auto-toggle::after {
-  margin-left: 5px;
-  padding-top: 5px;
-  color: var(--ck-color-toolbar-border);
-  display: block;
-  width: 20px;
-  height: 20px;
+.ck-editor-container .ck-editor-sidebar-wrapper.narrowSidebar button svg {
+/*.ck-editor-container .ck-editor-sidebar-wrapper.wideSidebar button svg {*/
   -webkit-transform: scaleX(-1);
   transform: scaleX(-1);
-}
-.ck-editor-container .ck-editor-sidebar-wrapper.narrowSidebar a.ck-sidebar-auto-toggle::after {
-  content: url(../icons/sidebar.svg);
-}
-.ck-editor-container .ck-editor-sidebar-wrapper.wideSidebar a.ck-sidebar-auto-toggle::after {
-  content: url(../icons/arrow.svg);
 }
 
 /* Fullscreen mode */
@@ -165,3 +131,22 @@ tr.draggable .ck-editor-sidebar-wrapper .ck-sidebar-wrapper {
   min-width: 350px;
 }
 
+/* Gin theme */
+.gin--dark-mode .ck {
+  --ck-color-annotation-wrapper-drop-shadow: var(--gin-shadow-l2);
+  --ck-color-annotation-wrapper-background: var(--gin-bg-layer);
+  --ck-color-comment-input-background: var(--gin-bg-layer);
+  --ck-color-comment-remove-background: var(--gin-bg-layer);
+
+  .ck.ck-sidebar--narrow .ck-annotation-counter {
+    color: var(--ck-color-text);
+  }
+  .ck.ck-sidebar--narrow .ck-annotation-counter:focus,
+  .ck.ck-sidebar--narrow .ck-annotation-counter:hover {
+    color: var(--gin-color-primary);
+  }
+
+  .ck .ck-annotation-wrapper .ck-thread {
+    background-color: var(--ck-color-annotation-wrapper-background);
+  }
+}

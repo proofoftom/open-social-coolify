@@ -18,6 +18,7 @@ class ConsumerListBuilder extends EntityListBuilder {
     $header['uuid'] = $this->t('UUID');
     $header['label'] = $this->t('Label');
     $header['is_default'] = $this->t('Is Default?');
+    $header['status'] = $this->t('Status');
     $context = ['type' => 'header'];
     $this->moduleHandler()->alter('consumers_list', $header, $context);
     $header = $header + parent::buildHeader();
@@ -46,6 +47,7 @@ class ConsumerListBuilder extends EntityListBuilder {
     $row['is_default'] = $entity->get('is_default')->value
       ? ['data' => $this->t('Default')]
       : ['data' => $ops];
+    $row['status'] = ($entity->isPublished() ? $this->t('Active') : $this->t('Inactive'));
 
     $context = ['type' => 'row', 'entity' => $entity];
     $this->moduleHandler()->alter('consumers_list', $row, $context);

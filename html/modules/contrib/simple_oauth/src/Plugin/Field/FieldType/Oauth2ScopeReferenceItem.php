@@ -4,10 +4,12 @@ namespace Drupal\simple_oauth\Plugin\Field\FieldType;
 
 use Drupal\Core\Field\FieldItemBase;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\TypedData\DataDefinition;
 use Drupal\Core\TypedData\OptionsProviderInterface;
 use Drupal\simple_oauth\Oauth2ScopeInterface;
+use Drupal\simple_oauth\Plugin\Oauth2GrantManager;
 
 /**
  * Plugin implementation of the 'oauth2_scope_reference' field type.
@@ -17,6 +19,7 @@ use Drupal\simple_oauth\Oauth2ScopeInterface;
  *   label = @Translation("OAuth2 scope reference"),
  *   description = @Translation("An entity field containing a oauth2_scope reference."),
  *   category = "reference",
+ *   no_ui = TRUE,
  *   default_widget = "oauth2_scope_reference",
  *   list_class = "\Drupal\simple_oauth\Plugin\Field\FieldType\Oauth2ScopeReferenceItemList",
  * )
@@ -39,6 +42,34 @@ class Oauth2ScopeReferenceItem extends FieldItemBase implements Oauth2ScopeRefer
       ->setRequired(TRUE);
 
     return $properties;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function defaultFieldSettings() {
+    return [
+      // When set, only show scopes enabled for this specific grant type.
+      // This filtering is independent of the entity's grant_types field.
+      'filter_grant_type' => '',
+    ] + parent::defaultFieldSettings();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function fieldSettingsForm(array $form, FormStateInterface $form_state) {
+    $element = parent::fieldSettingsForm($form, $form_state);
+
+    $element['filter_grant_type'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Filter by grant type'),
+      '#description' => $this->t('Optionally filter available scopes to only those enabled for a specific grant type.'),
+      '#default_value' => $this->getSetting('filter_grant_type'),
+      '#options' => Oauth2GrantManager::getAvailablePluginsAsOptions(),
+    ];
+
+    return $element;
   }
 
   /**
@@ -88,11 +119,28 @@ class Oauth2ScopeReferenceItem extends FieldItemBase implements Oauth2ScopeRefer
 
   /**
    * {@inheritdoc}
+   *
+   * Returns available scopes filtered by the field's filter_grant_type setting.
+   *
+   * IMPORTANT: Scope visibility is controlled exclusively by the field-level
+   * filter_grant_type setting. The parent entity's (e.g., consumer's) enabled
+   * grant types do NOT affect which scopes are available. This allows fields
+   * to show scopes for grant types not currently enabled on the entity.
+   *
+   * Examples:
+   * - If filter_grant_type is empty: returns ALL scopes
+   * - If filter_grant_type is 'client_credentials': returns only scopes
+   *   enabled for the client_credentials grant type, regardless of which
+   *   grant types are enabled on the consumer entity
    */
   public function getPossibleOptions(?AccountInterface $account = NULL) {
     /** @var \Drupal\simple_oauth\Oauth2ScopeAdapterInterface $scope_provider */
     $scope_provider = \Drupal::service('simple_oauth.oauth2_scope.provider');
-    $scopes = $scope_provider->loadMultiple();
+
+    $filter_grant_type = $this->getSetting('filter_grant_type');
+    $scopes = empty($filter_grant_type)
+      ? $scope_provider->loadMultiple()
+      : $scope_provider->loadByGrantType($filter_grant_type);
 
     return array_map(function (Oauth2ScopeInterface $scope) {
       return $scope->getName();

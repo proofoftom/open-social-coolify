@@ -1,0 +1,5 @@
+name: 'AI File to Text'
+type: module
+description: 'This module offers automators and agents to convert Word (.docx, .doc), ODT, ODS, PDF, CSV, TXT, and Markdown files to text, HTML, or Markdown'
+package: AI Tools
+core_version_requirement: ^10 || ^11

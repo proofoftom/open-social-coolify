@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -183,13 +183,13 @@ class LinkAttributes extends CKEditor5PluginDefault implements CKEditor5PluginCo
 
     foreach ($attributes as $attribute) {
       $decoratorTitle = $this->convertToCamelCase($attribute['label']);
-      $attributeValues = $this->getParsedAttributes($attribute['attributes']);
+      $parsedAttributes = $this->getParsedAttributes($attribute['attributes']);
 
-      $static_plugin_config['link']['decorators'][$decoratorTitle] = [
+      $static_plugin_config['link']['decorators'][$decoratorTitle] = array_merge([
         'mode' => 'manual',
         'label' => $attribute['label'],
-        'attributes' => $attributeValues,
-      ];
+      ], $parsedAttributes);
+
     }
 
     return $static_plugin_config;
@@ -222,13 +222,33 @@ class LinkAttributes extends CKEditor5PluginDefault implements CKEditor5PluginCo
       if (empty($trimmedValue)) {
         continue;
       }
-      $attributeValue = explode('|', $trimmedValue);
-      if (count($attributeValue) !== 2) {
+      [$attributeKey, $attributeValue] = explode('|', $trimmedValue);
+      if (!$attributeValue) {
         continue;
       }
-      else {
-        $attributes[$attributeValue[0]] = $attributeValue[1];
+
+      if ($attributeKey === 'class') {
+        $classes = explode(' ', $attributeValue);
+        $attributes['classes'] = isset($attributes['classes']) ? array_merge($attributes['classes'], $classes) : $classes;
       }
+      elseif ($attributeKey === 'style') {
+        $styles = explode(';', $attributeValue);
+        foreach ($styles as $style) {
+          $style = trim($style);
+          $styleArr = explode(':', $style);
+          if (count($styleArr) !== 2) {
+            continue;
+          }
+          $attributes['styles'][$styleArr[0]] = $styleArr[1];
+        }
+      }
+      else {
+        $attributes['attributes'][$attributeKey] = $attributeValue;
+      }
+
+    }
+    if (isset($attributes['classes']) && count($attributes['classes']) == 1) {
+      $attributes['classes'] = $attributes['classes'][0];
     }
     return $attributes;
   }

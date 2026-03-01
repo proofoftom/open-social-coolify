@@ -46,6 +46,18 @@ group_relation.config.send_email_existing_users:
   type: 'boolean'
   label: 'Send invitation e-mail to already registered users'
 
+group_relation.config.send_email_not_existing_users:
+  type: 'boolean'
+  label: 'Send invitation e-mail to invitee'
+
+group_relation.config.remove_invitation:
+  type: 'integer'
+  label: 'Remove an invitation, when user join the group.'
+
+group_relation.config.autoaccept_invitees:
+  type: 'boolean'
+  label: 'Automatically accept invitation'
+
 ginvite.pending_invitations_warning:
   type: config_object
   label: Pending invitations warning settings

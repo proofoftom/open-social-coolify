@@ -9,4 +9,5 @@ services:
 
   advancedqueue.processor:
     class: Drupal\advancedqueue\Processor
-    arguments: ['@event_dispatcher', '@datetime.time', '@plugin.manager.advancedqueue_job_type', '@logger.channel.cron']
+    arguments: ['@event_dispatcher', '@datetime.time', '@plugin.manager.advancedqueue_job_type', '@logger.factory']
+  Drupal\advancedqueue\ProcessorInterface: '@advancedqueue.processor'

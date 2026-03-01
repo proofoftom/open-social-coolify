@@ -1,0 +1,5 @@
+ai_provider_ollama.settings_menu:
+  title: "Ollama Configuration"
+  description: "Setup Ollama"
+  route_name: ai_provider_ollama.settings_form
+  parent: ai.admin_providers

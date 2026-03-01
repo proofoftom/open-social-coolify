@@ -11,7 +11,9 @@ use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\simple_oauth\Attribute\ScopeGranularity;
 use Drupal\simple_oauth\Oauth2ScopeInterface;
 use Drupal\simple_oauth\Plugin\ScopeGranularityBase;
-use Drupal\user\RoleStorage;
+use Drupal\simple_oauth\Plugin\ScopeGranularityRoleInterface;
+use Drupal\user\RoleInterface;
+use Drupal\user\RoleStorageInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -21,7 +23,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
   Oauth2ScopeInterface::GRANULARITY_ROLE,
   new TranslatableMarkup('Role'),
 )]
-class Role extends ScopeGranularityBase implements ContainerFactoryPluginInterface {
+class Role extends ScopeGranularityBase implements ScopeGranularityRoleInterface, ContainerFactoryPluginInterface {
 
   public function __construct(
     array $configuration,
@@ -72,6 +74,31 @@ class Role extends ScopeGranularityBase implements ContainerFactoryPluginInterfa
    * {@inheritdoc}
    */
   public function hasPermission(string $permission): bool {
+    $rolesToCheck = $this->getRoles();
+    if (empty($rolesToCheck)) {
+      return FALSE;
+    }
+    $role_storage = $this->entityTypeManager->getStorage('user_role');
+    assert($role_storage instanceof RoleStorageInterface);
+    return $role_storage->isPermissionInRoles($permission, $rolesToCheck);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getRoles(bool $exclude_locked_roles = FALSE): array {
+    $role = $this->getConfiguration()['role'];
+    if (in_array($role, [AccountInterface::ANONYMOUS_ROLE, AccountInterface::AUTHENTICATED_ROLE], TRUE)) {
+      return $exclude_locked_roles ? [] : [$role];
+    }
+
+    return $exclude_locked_roles ? [$role] : [AccountInterface::AUTHENTICATED_ROLE, $role];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPermissions(): array {
     $role = $this->getConfiguration()['role'];
 
     $lockedRoles = [
@@ -83,8 +110,16 @@ class Role extends ScopeGranularityBase implements ContainerFactoryPluginInterfa
       : [$role];
 
     $role_storage = $this->entityTypeManager->getStorage('user_role');
-    assert($role_storage instanceof RoleStorage);
-    return $role_storage->isPermissionInRoles($permission, $rolesToCheck);
+    assert($role_storage instanceof RoleStorageInterface);
+
+    $permissions = [];
+    foreach ($rolesToCheck as $roleToCheck) {
+      $role = $role_storage->load($roleToCheck);
+      assert($role instanceof RoleInterface);
+      $permissions = array_unique(array_merge($permissions, $role->getPermissions()));
+    }
+
+    return $permissions;
   }
 
   /**

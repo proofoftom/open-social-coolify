@@ -1,0 +1,9 @@
+{
+  "name": "drupal/ai_usage_limits",
+  "description": "Provides token usage limits per AI provider for the Drupal AI module.",
+  "type": "drupal-module",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "drupal/ai": "^1.2"
+  }
+}

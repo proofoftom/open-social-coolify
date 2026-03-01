@@ -34,7 +34,7 @@ real-time-collaboration:
     - ckeditor5_premium_features/collaboration-integration-base
 
 realtime-revision-history:
-  version: 20250829
+  version: 20251230
   license:
     name: GNU-GPL-2.0-or-later
     url: https://raw.githubusercontent.com/ckeditor/ckeditor5/master/LICENSE.md

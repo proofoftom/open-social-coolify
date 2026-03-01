@@ -29,4 +29,12 @@ interface TokenAuthUserInterface extends \IteratorAggregate, UserInterface {
    */
   public function getConsumer(): Consumer;
 
+  /**
+   * Get the decorated subject.
+   *
+   * @return \Drupal\user\UserInterface
+   *   The original user object.
+   */
+  public function getSubject(): UserInterface;
+
 }

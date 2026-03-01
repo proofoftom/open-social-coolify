@@ -13,6 +13,11 @@ parameters:
     - .
 
   excludePaths:
+    - # This triggers an "implements unknown interface" error against Drupal
+      # versions earlier than 11.2, which cannot be ignored. We therefore need
+      # to exclude the whole file.
+      # @todo Remove once we depend on Drupal 11.2+.
+      modules/search_api_db/search_api_db_defaults/src/Install/Requirements/SearchApiDbDefaultsInstallRequirements.php
     - search_api.behat.inc
 
   ignoreErrors:
@@ -32,8 +37,18 @@ parameters:
 
     - # The enum was newly introduced in Drupal 11.2.
       # @todo Remove once we depend on Drupal 11.2+.
-      message: "#^Access to constant Error on an unknown class Drupal\\\\Core\\\\Extension\\\\Requirement\\\\RequirementSeverity\\.#"
-      path: modules/search_api_db/search_api_db_defaults/search_api_db_defaults.install
+      message: "#^Access to constant (Error|Warning) on an unknown class Drupal\\\\Core\\\\Extension\\\\Requirement\\\\RequirementSeverity\\.#"
+      paths:
+        - modules/search_api_db/search_api_db_defaults/search_api_db_defaults.install
+        - src/Hook/SearchApiHooks.php
+      reportUnmatched: false
+
+    - # The LegacyRequirementsHook attribute was added in Drupal 11.3.
+      # @todo Remove once we depend on Drupal 11.3+.
+      message: "#^Attribute class Drupal\\\\Core\\\\Hook\\\\Attribute\\\\LegacyRequirementsHook does not exist\\.$#"
+      paths:
+        - modules/search_api_db/search_api_db_defaults/search_api_db_defaults.install
+        - search_api.install
       reportUnmatched: false
 
     - # OOP hooks were not introduced until Drupal 11.1.

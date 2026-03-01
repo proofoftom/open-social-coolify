@@ -1,7 +1,0 @@
-group.type.*.third_party.group_treasury:
-  type: mapping
-  label: 'Group treasury settings'
-  mapping:
-    creator_treasury_wizard:
-      type: boolean
-      label: 'Group creator must complete treasury deployment'

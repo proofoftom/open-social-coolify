@@ -3,6 +3,7 @@
 namespace Drupal\simple_oauth_static_scope\Plugin;
 
 use Drupal\Component\Plugin\Exception\PluginException;
+use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Component\Plugin\PluginManagerInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
@@ -201,7 +202,12 @@ class Oauth2ScopeManager extends DefaultPluginManager implements Oauth2ScopeMana
 
     foreach ($ids as $plugin_id) {
       if (!isset($this->instances[$plugin_id])) {
-        $this->instances[$plugin_id] = $this->createInstance($plugin_id);
+        try {
+          $this->instances[$plugin_id] = $this->createInstance($plugin_id);
+        }
+        catch (PluginNotFoundException $e) {
+          continue;
+        }
       }
       $instances[$plugin_id] = $this->instances[$plugin_id];
     }

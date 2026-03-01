@@ -99,4 +99,12 @@ interface Oauth2ScopeInterface {
    */
   public function getGranularity(): ?ScopeGranularityInterface;
 
+  /**
+   * Get the referenced permissions.
+   *
+   * @return array
+   *   Returns the permissions.
+   */
+  public function getPermissions(): array;
+
 }

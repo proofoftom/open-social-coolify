@@ -1,0 +1,12 @@
+name: Qdrant VDB Provider
+description: This enables the use of a qdrant vector database in the AI module.
+package: AI Vector Database Providers (Experimental)
+type: module
+core_version_requirement: ^10.2 || ^11
+configure: ai_vdb_provider_qdrant.settings_form
+lifecycle: experimental
+
+dependencies:
+  - ai:ai
+  - ai:ai_search (^1.2)
+  - key:key

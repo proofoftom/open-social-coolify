@@ -137,7 +137,22 @@ class RagTool extends FunctionCallBase implements StructuredExecutableFunctionCa
         if ($min_score > $result->getScore()) {
           continue;
         }
-        $end_results[] = "Search result: #$i:\n```\n" . $result->getExtraData('content') . "\n```\n\n";
+        $content = $result->getExtraData('content');
+        $citation_url = $result->getExtraData('citation_url') ?: '';
+        $citation_title = $result->getExtraData('citation_title') ?: '';
+        $citation_type = $result->getExtraData('citation_type') ?: '';
+
+        $result_text = "Search result: #$i:\n```\n" . $content . "\n```\n";
+
+        // Add citation metadata if available.
+        if ($citation_url && $citation_title) {
+          $result_text .= "Source: [" . $citation_title . "](" . $citation_url . ")\n";
+        }
+        if ($citation_type) {
+          $result_text .= "Type: " . $citation_type . "\n";
+        }
+        $result_text .= "\n";
+        $end_results[] = $result_text;
         $i++;
       }
     }

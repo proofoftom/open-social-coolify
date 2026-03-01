@@ -6,48 +6,36 @@
  */
 
 use Drupal\Component\Utility\UrlHelper;
-use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\consumers\Entity\ConsumerInterface;
+use Drupal\simple_oauth\TokenExpiryTriggerHandlerInterface;
+use Drupal\user\UserInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Implements hook_cron().
  */
 function simple_oauth_cron() {
-  /** @var \Drupal\simple_oauth\ExpiredCollector $collector */
-  $collector = \Drupal::service('simple_oauth.expired_collector');
-  $config = \Drupal::config('simple_oauth.settings');
-  $logger = \Drupal::logger('simple_oauth');
-  $token_cron_batch_size = $config->get('token_cron_batch_size') ?? 0;
-  // Deleting one batch of expired tokens.
-  if (!empty($expired_tokens = $collector->collect($token_cron_batch_size))) {
-    $collector->deleteMultipleTokens($expired_tokens);
-    $logger->notice('Deleted @count expired tokens in cron.', [
-      '@count' => count($expired_tokens),
-    ]);
-  }
+  \Drupal::service(TokenExpiryTriggerHandlerInterface::class)->handleCron();
 }
 
 /**
- * Implements hook_entity_update().
+ * Implements hook_ENTITY_TYPE_update().
  */
-function simple_oauth_entity_update(EntityInterface $entity) {
-  /** @var \Drupal\simple_oauth\ExpiredCollector $collector */
-  $collector = \Drupal::service('simple_oauth.expired_collector');
-  // Collect the affected tokens and expire them.
-  if ($entity instanceof AccountInterface) {
-    $collector->deleteMultipleTokens($collector->collectForAccount($entity));
-  }
-  if ($entity instanceof ConsumerInterface) {
-    $collector->deleteMultipleTokens($collector->collectForClient($entity));
-  }
+function simple_oauth_user_update(UserInterface $user): void {
+  \Drupal::service(TokenExpiryTriggerHandlerInterface::class)->handleUserUpdate($user);
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_update().
+ */
+function simple_oauth_consumer_update(ConsumerInterface $consumer): void {
+  \Drupal::service(TokenExpiryTriggerHandlerInterface::class)->handleConsumerUpdate($consumer);
 }
 
 /**
@@ -96,6 +84,7 @@ function simple_oauth_entity_base_field_info(EntityTypeInterface $entity_type) {
     $fields['scopes'] = BaseFieldDefinition::create('oauth2_scope_reference')
       ->setLabel(new TranslatableMarkup('Scopes'))
       ->setDescription(new TranslatableMarkup('Selecting scopes here will be set as default when authorizing (so no need to specify the scope parameter on the token request), also the selection of scopes will limit the allowed scopes on the consumer/client.'))
+      ->setSetting('filter_grant_type', 'client_credentials')
       ->setDisplayOptions('view', [
         'label' => 'inline',
         'type' => 'oauth2_scope_reference_label',
@@ -115,7 +104,7 @@ function simple_oauth_entity_base_field_info(EntityTypeInterface $entity_type) {
       ->setDescription(new TranslatableMarkup('The absolute URIs to validate against.'))
       ->setDisplayOptions('view', [
         'label' => 'inline',
-        'weight' => 5,
+        'weight' => 15,
       ])
       ->setDisplayOptions('form', [
         'weight' => 5,
@@ -222,6 +211,23 @@ function simple_oauth_entity_base_field_info(EntityTypeInterface $entity_type) {
       ->setRevisionable(TRUE)
       ->setTranslatable(FALSE)
       ->setDefaultValue(TRUE);
+
+    $fields['authorization_code_scopes'] = BaseFieldDefinition::create('oauth2_scope_reference')
+      ->setLabel(new TranslatableMarkup('Authorization code scopes'))
+      ->setDescription(new TranslatableMarkup('This selection can be overridden by scopes passed as parameters to the authorization requests.'))
+      ->setSetting('filter_grant_type', 'authorization_code')
+      ->setDisplayOptions('view', [
+        'label' => 'inline',
+        'type' => 'oauth2_scope_reference_label',
+        'weight' => -4,
+      ])
+      ->setDisplayOptions('form', [
+        'type' => 'oauth2_scope_reference',
+        'weight' => -4,
+      ])
+      ->setRevisionable(TRUE)
+      ->setTranslatable(FALSE)
+      ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
   }
   return $fields;
 }
@@ -234,6 +240,9 @@ function simple_oauth_form_consumer_form_alter(array &$form, FormStateInterface 
   $form['#entity_builders'][] = 'simple_oauth_form_consumer_form_submit';
   // Add custom validation.
   $form['#validate'][] = 'simple_oauth_form_consumer_form_validate';
+
+  // Use a simpler title in form.
+  $form['authorization_code_scopes']['widget']['#title'] = t('Scopes');
 
   // @todo Implement vertical tabs when this fix lands in core: https://www.drupal.org/project/drupal/issues/1148950.
   $form['authorization_code'] = [
@@ -248,6 +257,7 @@ function simple_oauth_form_consumer_form_alter(array &$form, FormStateInterface 
         ],
       ],
     ],
+    'authorization_code_scopes' => $form['authorization_code_scopes'],
     'automatic_authorization' => $form['automatic_authorization'],
     'remember_approval' => $form['remember_approval'],
     'pkce' => $form['pkce'],
@@ -316,6 +326,7 @@ function simple_oauth_form_consumer_form_alter(array &$form, FormStateInterface 
   unset(
     $form['user_id'],
     $form['scopes'],
+    $form['authorization_code_scopes'],
     $form['automatic_authorization'],
     $form['remember_approval'],
     $form['refresh_token_expiration'],

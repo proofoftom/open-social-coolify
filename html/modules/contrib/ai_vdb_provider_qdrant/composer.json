@@ -1,0 +1,10 @@
+{
+    "name": "drupal/ai_vdb_provider_qdrant",
+    "description": "Enables the use of a Qdrant vector database with the AI module.",
+    "type": "drupal-module",
+    "require": {
+        "ext-curl": "*",
+        "drupal/ai": "^1.2",
+        "drupal/search_api": "^1.x-dev"
+    }
+}

@@ -1,0 +1,8 @@
+ai_vdb_provider_qdrant.settings_form:
+  path: '/admin/config/ai/vdb_providers/qdrant'
+  defaults:
+    _form: '\Drupal\ai_vdb_provider_qdrant\Form\QdrantConfigForm'
+    _title: 'Configure Qdrant'
+  requirements:
+    _permission: 'administer ai providers'
+

@@ -22,3 +22,7 @@ parameters:
   ignoreErrors:
     # new static() is a best practice in Drupal, so we cannot fix that.
     - "#^Unsafe usage of new static#"
+    # Older cores lack the Hook attribute, but newer cores should not fail.
+    - message: "#Attribute class Drupal\\\\Core\\\\Hook\\\\Attribute\\\\Hook does not exist#"
+      path: src/Hook/AiAgentCollectionFormAlter.php
+      reportUnmatched: false

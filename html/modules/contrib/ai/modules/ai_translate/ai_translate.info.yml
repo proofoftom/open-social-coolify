@@ -8,4 +8,4 @@ dependencies:
   - ai:ai
   - drupal:content_translation
 lifecycle: deprecated
-lifecycle_link: https://www.drupal.org/project/ai/issues/3554535
+lifecycle_link: https://www.drupal.org/node/3570275

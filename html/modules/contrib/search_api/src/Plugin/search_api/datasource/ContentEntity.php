@@ -1184,8 +1184,13 @@ class ContentEntity extends DatasourcePluginBase implements PluginFormInterface 
         catch (\Throwable $e) {
           // We don't want to catch all PHP \Error objects thrown, but just the
           // ones caused by #2893747.
-          if (!($e instanceof \Exception)
-              && (get_class($e) !== \Error::class || $e->getMessage() !== 'Call to a member function getColumns() on bool')) {
+          if (
+            !($e instanceof \Exception)
+            && (
+              get_class($e) !== \Error::class
+              || !str_starts_with($e->getMessage(), 'Call to a member function getColumns() on')
+            )
+          ) {
             throw $e;
           }
           $vars = [

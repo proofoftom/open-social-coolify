@@ -78,6 +78,6 @@ To remove the module files after uninstallation, run
 
 ## License
 
-Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
 
 Licensed under the terms of GNU General Public License Version 2 or later.

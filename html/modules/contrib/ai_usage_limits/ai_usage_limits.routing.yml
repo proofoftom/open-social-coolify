@@ -1,0 +1,7 @@
+ai_usage_limits.settings:
+  path: '/admin/config/ai/usage_limits'
+  defaults:
+    _form: '\Drupal\ai_usage_limits\Form\SettingsForm'
+    _title: 'AI Usage Limits'
+  requirements:
+    _permission: 'administer ai providers'

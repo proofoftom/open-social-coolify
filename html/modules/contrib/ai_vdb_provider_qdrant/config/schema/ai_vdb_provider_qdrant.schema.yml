@@ -1,0 +1,12 @@
+ai_vdb_provider_qdrant.settings:
+  type: mapping
+  label: "Qdrant Settings"
+  mapping:
+    host:
+      type: string
+      label: "Host"
+      required: true
+    port:
+      type: integer
+      label: "Port"
+      required: false

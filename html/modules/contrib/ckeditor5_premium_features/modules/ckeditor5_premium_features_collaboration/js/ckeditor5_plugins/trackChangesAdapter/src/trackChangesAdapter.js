@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -114,8 +114,8 @@ class TrackChangesAdapter {
       suggestionTracked.setAttribute('status', event.name);
     }
 
-    suggestion.on('accept', suggestionStatusUpdate);
-    suggestion.on('discard', suggestionStatusUpdate);
+    suggestion.on('accept', suggestionStatusUpdate, {priority: 'highest'});
+    suggestion.on('discard', suggestionStatusUpdate, {priority: 'highest'});
   }
 
   updateSuggestionCommentsData(data) {

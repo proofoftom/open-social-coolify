@@ -155,6 +155,7 @@ class AuthorizationServerFactory implements AuthorizationServerFactoryInterface 
   protected function getPrivateKey(): CryptKey {
     $private_key_path = $this->config->get('private_key');
     $file_path = $this->fileSystem->realpath($private_key_path) ?: $private_key_path;
+
     $key = file_get_contents($file_path);
 
     if (!$key) {

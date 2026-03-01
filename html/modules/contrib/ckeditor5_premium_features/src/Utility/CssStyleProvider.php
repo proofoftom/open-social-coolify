@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -9,11 +9,14 @@ declare(strict_types=1);
 
 namespace Drupal\ckeditor5_premium_features\Utility;
 
+use Drupal\ckeditor5\Plugin\CKEditor5PluginManagerInterface;
 use Drupal\ckeditor5_premium_features\Plugin\CKEditor5Plugin\ExportBase;
+use Drupal\Core\Asset\LibraryDiscoveryInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Theme\ThemeManager;
 use Drupal\Core\File\FileExists;
+use Drupal\editor\EditorInterface;
 
 /**
  * Css style list provider.
@@ -29,10 +32,16 @@ class CssStyleProvider {
    *   File system service.
    * @param \Drupal\Core\File\FileUrlGeneratorInterface $fileUrlGenerator
    *   File Url generator service.
+   * @param \Drupal\ckeditor5\Plugin\CKEditor5PluginManagerInterface $ckeditor5PluginManager
+   *   CKEditor5 Plugin Manager service.
+   * @param \Drupal\Core\Asset\LibraryDiscoveryInterface $libraryDiscovery
+   *   Library discovery service.
    */
   public function __construct(protected ThemeManager $themeManager,
                               protected FileSystemInterface $fileSystem,
-                              protected FileUrlGeneratorInterface $fileUrlGenerator) {
+                              protected FileUrlGeneratorInterface $fileUrlGenerator,
+                              protected CKEditor5PluginManagerInterface $ckeditor5PluginManager,
+                              protected LibraryDiscoveryInterface $libraryDiscovery) {
   }
 
   /**
@@ -87,15 +96,17 @@ class CssStyleProvider {
    * Formatted in pattern:
    *
    * @see isFontCssFile();
-   * - Fonts files.
    * - EDITOR_STYLES (default one).
-   * - All others (non fonts).
+   * - Theme fonts files.
+   * - Theme non font files.
+   * - Editor attached files.
    */
-  public function getFormattedListOfCssFiles(): array {
+  public function getFormattedListOfCssFiles(EditorInterface $editor): array {
     $fonts = $this->getCssStylesheetsUrls(TRUE);
     $non_fonts = $this->getCssStylesheetsUrls();
+    $editor_styles = $this->getEditorAttachedStylesheets($editor);
 
-    return array_merge($fonts, ['EDITOR_STYLES'], $non_fonts);
+    return array_merge(['EDITOR_STYLES'], $fonts, $non_fonts, $editor_styles);
   }
 
   /**
@@ -142,6 +153,55 @@ class CssStyleProvider {
       return $relativePath;
     }
     return FALSE;
+  }
+
+  /**
+   * Gets all stylesheets attached to a CKEditor 5 instance.
+   *
+   * @param \Drupal\editor\EditorInterface $editor
+   *   The editor entity.
+   *
+   * @return array
+   *   An array of stylesheet urls.
+   */
+  private function getEditorAttachedStylesheets(EditorInterface $editor): array {
+    $stylesheets = [];
+
+    // Only process CKEditor 5 editors.
+    if ($editor->getEditor() !== 'ckeditor5') {
+      return $stylesheets;
+    }
+
+    // Get the base library.
+    $libraries = ['system/base'];
+    // Get all libraries attached to this editor using the plugin manager.
+    $libraries = array_merge($libraries, $this->ckeditor5PluginManager->getEnabledLibraries($editor));
+
+    // Process each library to extract CSS files.
+    foreach ($libraries as $library) {
+      list($extension, $name) = explode('/', $library, 2);
+      $library_definition = $this->libraryDiscovery->getLibraryByName($extension, $name);
+
+      if (!$library_definition) {
+        continue;
+      }
+
+      // Extract CSS files from the library.
+      if (isset($library_definition['css'])) {
+        foreach ($library_definition['css'] as $css_item) {
+          if (isset($css_item['data']) && $css_item['type'] === 'file') {
+            $stylesheets[] = $css_item['data'];
+          }
+        }
+      }
+    }
+
+    // Convert relative paths to full URLs.
+    foreach ($stylesheets as $key => $path) {
+      $stylesheets[$key] = $this->fileUrlGenerator->generateString($path);
+    }
+
+    return $stylesheets;
   }
 
 }

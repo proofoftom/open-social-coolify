@@ -202,15 +202,17 @@ abstract class TokenBearerFunctionalTestBase extends BrowserTestBase {
    *
    * @param string $access_token
    *   The access token.
+   * @param int $status_code
+   *   The expected status code.
    *
    * @throws \Behat\Mink\Exception\ExpectationException
    */
-  protected function assertAccessTokenOnResource(string $access_token): void {
+  protected function assertAccessTokenOnResource(string $access_token, int $status_code = 200): void {
     $resource_path = Url::fromRoute('oauth2_resource.test')->toString();
     $this->drupalGet($resource_path, [], [
       'Authorization' => "Bearer {$access_token}",
     ]);
-    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->statusCodeEquals($status_code);
   }
 
 }

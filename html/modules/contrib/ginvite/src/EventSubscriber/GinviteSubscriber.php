@@ -4,18 +4,16 @@ namespace Drupal\ginvite\EventSubscriber;
 
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Messenger\MessengerInterface;
-use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Drupal\ginvite\Event\InvitationBaseEvent;
 use Drupal\ginvite\Event\UserLoginWithInvitationEvent;
 use Drupal\ginvite\Event\UserRegisteredFromInvitationEvent;
 use Drupal\ginvite\GroupInvitationLoader;
+use Drupal\ginvite\GroupInvitationManager;
 use Drupal\ginvite\Plugin\Group\Relation\GroupInvitation;
-use Drupal\group\Entity\GroupRelationship;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -37,21 +35,14 @@ class GinviteSubscriber implements EventSubscriberInterface {
   protected $groupInvitationLoader;
 
   /**
-   * The current user's account object.
-   *
-   * @var \Drupal\Core\Session\AccountInterface
-   */
-  protected $currentUser;
-
-  /**
-   * The Messenger service.
+   * Messenger service.
    *
    * @var \Drupal\Core\Messenger\MessengerInterface
    */
   protected $messenger;
 
   /**
-   * The logger factory.
+   * Logger factory.
    *
    * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
    */
@@ -65,42 +56,38 @@ class GinviteSubscriber implements EventSubscriberInterface {
   protected $configFactory;
 
   /**
-   * The entity type manager.
+   * Group invitation manager.
    *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   * @var \Drupal\ginvite\GroupInvitationManager
    */
-  protected $entityTypeManager;
+  protected $groupInvitationManager;
 
   /**
    * Constructs GinviteSubscriber.
    *
    * @param \Drupal\ginvite\GroupInvitationLoader $invitation_loader
    *   Invitations loader service.
-   * @param \Drupal\Core\Session\AccountInterface $current_user
-   *   The current user.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
-   *   The messenger service.
+   *   Messenger service.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
-   *   The logger factory service.
+   *   Logger factory service.
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   *   The config factory.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entity type manager.
+   *   Config factory.
+   * @param \Drupal\ginvite\GroupInvitationManager $group_invitation_manager
+   *   Group invitation manager.
    */
   public function __construct(
     GroupInvitationLoader $invitation_loader,
-    AccountInterface $current_user,
     MessengerInterface $messenger,
     LoggerChannelFactoryInterface $logger_factory,
     ConfigFactoryInterface $config_factory,
-    EntityTypeManagerInterface $entity_type_manager
+    GroupInvitationManager $group_invitation_manager,
   ) {
     $this->groupInvitationLoader = $invitation_loader;
-    $this->currentUser = $current_user;
     $this->messenger = $messenger;
     $this->loggerFactory = $logger_factory;
     $this->configFactory = $config_factory;
-    $this->entityTypeManager = $entity_type_manager;
+    $this->groupInvitationManager = $group_invitation_manager;
   }
 
   /**
@@ -136,7 +123,7 @@ class GinviteSubscriber implements EventSubscriberInterface {
     // misleading extra message on the next request.
     $route = $event->getRequest()->get('_route');
     if (!empty($route) && !in_array($route, $config->get('excluded_routes') ?? [], TRUE) && !empty($config->get('warning_message'))) {
-      $destination = Url::fromRoute('view.my_invitations.page_1', ['user' => $this->currentUser->id()])->toString();
+      $destination = Url::fromRoute('view.my_invitations.page_1')->toString();
       $this->messenger->addMessage(new FormattableMarkup($config->get('warning_message'), ['@my_invitations_url' => $destination]), 'warning', FALSE);
     }
   }
@@ -155,10 +142,13 @@ class GinviteSubscriber implements EventSubscriberInterface {
     }
 
     $invited_user = $invitation->getUser();
-    $invited_user->activate();
-    $invited_user->save();
-    $this->messenger->addMessage($this->t('User %user unblocked as it comes from an invitation', ['%user' => $invited_user->getDisplayName()]));
-    $this->loggerFactory->get('ginvite')->notice($this->t('User %user unblocked as it comes from an invitation', ['%user' => $invited_user->getDisplayName()]));
+    if (!$invited_user->isActive()) {
+      $invited_user->activate();
+      $invited_user->save();
+      $this->messenger->addMessage($this->t('User %user unblocked as it comes from an invitation', ['%user' => $invited_user->getDisplayName()]));
+      $this->loggerFactory->get('ginvite')
+        ->notice($this->t('User %user unblocked as it comes from an invitation', ['%user' => $invited_user->getDisplayName()]));
+    }
   }
 
   /**
@@ -170,32 +160,20 @@ class GinviteSubscriber implements EventSubscriberInterface {
   public function autoAcceptGroupInvitation(InvitationBaseEvent $event) {
     $invitation = $event->getGroupInvitation();
     $group_relationship = $invitation->getGroupRelationship();
-    $group = $group_relationship->getGroup();
-    $group_type = $group->getGroupType();
 
-    $plugin_configuration = $group_type->getPlugin('group_invitation')->getConfiguration();
+    $plugin_configuration = $group_relationship->getPlugin()->getConfiguration();
     if (empty($plugin_configuration['autoaccept_invitees'])) {
       return;
     }
 
-    $relation_type_id = $this->entityTypeManager->getStorage('group_content_type')->getRelationshipTypeId($group_type->id(), 'group_membership');
-
-    // Pre-populate a group membership with the current user.
-    $group_membership = GroupRelationship::create([
-      'type' => $relation_type_id,
-      'entity_id' => $group_relationship->get('entity_id')->getString(),
-      'plugin_id' => 'group_membership',
-      'group_type' => $group_type->id(),
-      'gid' => $group->id(),
-      'uid' => $group_relationship->getOwnerId(),
-      'group_roles' => $group_relationship->get('group_roles')->getValue(),
-    ]);
-
-    $group_membership->save();
-
     // Set the status of the invitation to accepted and save it.
     $group_relationship->set('invitation_status', GroupInvitation::INVITATION_ACCEPTED);
     $group_relationship->save();
+
+    $group_membership = $this->groupInvitationManager->createMember($group_relationship);
+    if ($group_membership->isNew()) {
+      $group_membership->save();
+    }
   }
 
 }

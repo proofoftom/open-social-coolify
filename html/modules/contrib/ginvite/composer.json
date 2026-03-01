@@ -11,6 +11,6 @@
     "minimum-stability": "dev",
     "require": {
         "drupal/group" : "^2.0",
-        "drupal/core": "^9 || ^10"
+        "drupal/core": "^10.5 || ^11"
     }
 }

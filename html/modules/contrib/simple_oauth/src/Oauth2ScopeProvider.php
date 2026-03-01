@@ -4,6 +4,7 @@ namespace Drupal\simple_oauth;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\simple_oauth\Plugin\ScopeGranularityInterface;
+use Drupal\simple_oauth\Plugin\ScopeGranularityRoleInterface;
 
 /**
  * OAuth2 scope provider.
@@ -92,6 +93,53 @@ class Oauth2ScopeProvider implements Oauth2ScopeProviderInterface {
     }
 
     return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getRoles(Oauth2ScopeInterface $scope, bool $exclude_locked_roles = FALSE): array {
+    $roles = [];
+    if ($scope->isUmbrella()) {
+      $children = $this->loadChildren($scope->id());
+      foreach ($children as $child) {
+        $roles = array_merge($roles, $this->getRoles($child, $exclude_locked_roles));
+      }
+      return array_unique($roles);
+    }
+
+    $granularity = $scope->getGranularity();
+    if ($granularity instanceof ScopeGranularityRoleInterface) {
+      $roles = $granularity->getRoles($exclude_locked_roles);
+    }
+
+    return $roles;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function loadByGrantType(string $grant_type): array {
+    return $this->adapter->loadByGrantType($grant_type);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getPermissions(Oauth2ScopeInterface $scope): array {
+    if (!$scope->isUmbrella()) {
+      $granularity = $scope->getGranularity();
+      assert($granularity instanceof ScopeGranularityInterface);
+      return $granularity->getPermissions();
+    }
+
+    $permissions = [];
+    $children = $this->loadChildren($scope->id());
+    foreach ($children as $child) {
+      $permissions = array_unique(array_merge($permissions, $child->getPermissions()));
+    }
+
+    return $permissions;
   }
 
   /**

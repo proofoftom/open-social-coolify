@@ -7,9 +7,9 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Entity\EntityFormBuilderInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Url;
+use Drupal\ginvite\GroupInvitationManager;
 use Drupal\ginvite\Plugin\Group\Relation\GroupInvitation;
 use Drupal\group\Entity\GroupInterface;
-use Drupal\group\Entity\GroupRelationship;
 use Drupal\group\Entity\GroupRelationshipInterface;
 use Drupal\group\GroupMembershipLoader;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -43,6 +43,13 @@ class InvitationOperations extends ControllerBase {
   protected $messenger;
 
   /**
+   * Group invitation manager.
+   *
+   * @var \Drupal\ginvite\GroupInvitationManager
+   */
+  protected $groupInvitationManager;
+
+  /**
    * InvitationOperations constructor.
    *
    * @param \Drupal\group\GroupMembershipLoader $membershipLoader
@@ -51,11 +58,19 @@ class InvitationOperations extends ControllerBase {
    *   The entity form builder.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger service.
+   * @param \Drupal\ginvite\GroupInvitationManager $group_invitation_manager
+   *   Group invitation manager.
    */
-  public function __construct(GroupMembershipLoader $membershipLoader, EntityFormBuilderInterface $entity_form_builder, MessengerInterface $messenger) {
+  public function __construct(
+    GroupMembershipLoader $membershipLoader,
+    EntityFormBuilderInterface $entity_form_builder,
+    MessengerInterface $messenger,
+    GroupInvitationManager $group_invitation_manager,
+  ) {
     $this->membershipLoader = $membershipLoader;
     $this->entityFormBuilder = $entity_form_builder;
     $this->messenger = $messenger;
+    $this->groupInvitationManager = $group_invitation_manager;
   }
 
   /**
@@ -65,7 +80,8 @@ class InvitationOperations extends ControllerBase {
     return new static(
       $container->get('group.membership_loader'),
       $container->get('entity.form_builder'),
-      $container->get('messenger')
+      $container->get('messenger'),
+      $container->get('ginvite.group_invitation_manager')
     );
   }
 
@@ -83,24 +99,10 @@ class InvitationOperations extends ControllerBase {
   public function accept(Request $request, GroupRelationshipInterface $group_content) {
     $group = $group_content->getGroup();
     $group_id = $group->id();
-    $group_type = $group->getGroupType();
 
-    // Load invitation plugin configuration.
-    $invitation_plugin_configuration = $group_type
-      ->getPlugin('group_invitation')
-      ->getConfiguration();
+    $invitation_plugin_configuration = $group_content->getPlugin()->getConfiguration();
 
-    $relation_type_id = $this->entityTypeManager()->getStorage('group_content_type')->getRelationshipTypeId($group_type->id(), 'group_membership');
-
-    // Pre-populate a group membership with the current user.
-    $group_membership = GroupRelationship::create([
-      'type' => $relation_type_id,
-      'entity_id' => $group_content->getEntityId(),
-      'content_plugin' => 'group_membership',
-      'gid' => $group_id,
-      'uid' => $group_content->getOwnerId(),
-      'group_roles' => $group_content->get('group_roles')->getValue(),
-    ]);
+    $group_membership = $this->groupInvitationManager->createMember($group_content);
 
     if (!empty($invitation_plugin_configuration['invitation_bypass_form']) && $invitation_plugin_configuration['invitation_bypass_form'] === TRUE) {
       // Save the membership immediately.
@@ -192,23 +194,34 @@ class InvitationOperations extends ControllerBase {
    *   Access check result.
    */
   public function checkAccess(GroupRelationshipInterface $group_content) {
-    $invited_user_id = $group_content->getEntityId();
-    $group = $group_content->getGroup();
-
-    // Plugin is not installed.
-    if (!$group->getGroupType()->hasPlugin('group_invitation')) {
-      return AccessResult::forbidden();
+    // Anonymous users cannot accept/decline invitations.
+    // Invitations for non-existent users have entity_id = 0, which would
+    // incorrectly match all anonymous visitors.
+    if ($this->currentUser()->isAnonymous()) {
+      return AccessResult::neutral();
     }
 
-    $membership = $this->membershipLoader->load($group, $this->currentUser());
-    $current_state = $group_content->get('invitation_status')->value;
+    $invited_user_id = $group_content->getEntityId();
+
+    // We handle only group invitations.
+    if ($group_content->getPluginId() !== 'group_invitation') {
+      return AccessResult::neutral();
+    }
+
+    // Plugin is not installed.
+    $group = $group_content->getGroup();
+    if (!$group->getGroupType()->hasPlugin('group_invitation')) {
+      return AccessResult::neutral();
+    }
+
+    $current_state = $group_content->invitation_status->value;
 
     // Only allow user accept/decline own invitations.
-    if ($invited_user_id == $this->currentUser()->id() && !$membership && (int) $current_state === GroupInvitation::INVITATION_PENDING) {
+    if ($invited_user_id == $this->currentUser()->id() && (int) $current_state === GroupInvitation::INVITATION_PENDING && empty($this->membershipLoader->load($group, $this->currentUser()))) {
       return AccessResult::allowed();
     }
 
-    return AccessResult::forbidden();
+    return AccessResult::neutral();
   }
 
 }

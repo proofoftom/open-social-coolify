@@ -12,6 +12,7 @@ use Drupal\Core\Url;
 use Drupal\ai\Service\FunctionCalling\FunctionCallInterface;
 use Drupal\ai\Service\FunctionCalling\FunctionCallPluginManager;
 use Drupal\ai\Service\FunctionCalling\FunctionGroupPluginManager;
+use Drupal\ai_agents\AiAgentOverrideInterface;
 use Drupal\ai_agents\Entity\AiAgent;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Yaml\Yaml;
@@ -276,6 +277,61 @@ final class AiAgentForm extends EntityForm {
       '#default_value' => $this->entity->get('tools') ?? [],
     ];
 
+    // Add override enforcement summary section if there are active overrides.
+    if (!$this->entity->isNew()) {
+      $override_enforcements = $this->getOverrideToolEnforcements();
+
+      if ($override_enforcements !== []) {
+        $form['prompt_detail']['tools_box']['override_enforcement'] = [
+          '#type' => 'details',
+          '#title' => $this->t('Override Enforcement'),
+          '#open' => TRUE,
+          '#weight' => 100,
+          '#description' => $this->t('The following tools are controlled by active overrides. Your selections above will be adjusted automatically when you save.'),
+        ];
+
+        $forced_enabled = [];
+        $forced_disabled = [];
+
+        foreach ($override_enforcements as $toolId => $enforcement) {
+          $definition = $function_call_plugin_manager->getDefinition($toolId);
+          $tool_name = $definition['name'] ?? $toolId;
+          $override_labels = implode(', ', $enforcement['labels']);
+
+          if ($enforcement['state']) {
+            $forced_enabled[] = $this->t('<strong>@tool</strong><br><em>Enabled by: @overrides</em>', [
+              '@tool' => $tool_name,
+              '@overrides' => $override_labels,
+            ]);
+          }
+          else {
+            $forced_disabled[] = $this->t('<strong>@tool</strong><br><em>Disabled by: @overrides</em>', [
+              '@tool' => $tool_name,
+              '@overrides' => $override_labels,
+            ]);
+          }
+        }
+
+        if ($forced_enabled !== []) {
+          $form['prompt_detail']['tools_box']['override_enforcement']['forced_enabled'] = [
+            '#type' => 'item',
+            '#title' => $this->t('Force Enabled Tools'),
+            '#markup' => '<div class="override-forced-enabled">' . implode('<hr>', $forced_enabled) . '</div>',
+          ];
+        }
+
+        if ($forced_disabled !== []) {
+          $form['prompt_detail']['tools_box']['override_enforcement']['forced_disabled'] = [
+            '#type' => 'item',
+            '#title' => $this->t('Force Disabled Tools'),
+            '#markup' => '<div class="override-forced-disabled">' . implode('<hr>', $forced_disabled) . '</div>',
+          ];
+        }
+
+        $form['prompt_detail']['tools_box']['override_enforcement']['#attached']['library'][] = 'ai_agents/agents_form';
+      }
+    }
+
     // Selected tools.
     $selected_tools = [];
     if ($form_state->isRebuilding()) {
@@ -327,6 +383,50 @@ final class AiAgentForm extends EntityForm {
       $form['prompt_detail']['tool_usage'] = [
         '#markup' => '<div id="tool-usage"></div>',
       ];
+    }
+
+    if (!$this->entity->isNew()) {
+      $form['prompt_detail']['overrides'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Overrides'),
+        '#open' => FALSE,
+        '#weight' => 90,
+        '#description' => $this->t("Overrides are site-level adjustments shipped by recipes or modules. When enabled, they can add or remove tools and adjust this agent's instructions."),
+      ];
+
+      $override_storage = $this->entityTypeManager->getStorage('ai_agent_override');
+      /** @var \Drupal\ai_agents\AiAgentOverrideInterface[] $overrides */
+      $overrides = $override_storage->loadByProperties(['parent_agent' => $this->entity->id()]);
+
+      if ($overrides === []) {
+        $form['prompt_detail']['overrides']['empty'] = [
+          '#markup' => '<p>' . $this->t('This agent has no overrides.') . '</p>',
+        ];
+      }
+      else {
+        usort($overrides, static function (AiAgentOverrideInterface $a, AiAgentOverrideInterface $b): int {
+          return [$a->getWeight(), $a->label()] <=> [$b->getWeight(), $b->label()];
+        });
+
+        $options = [];
+        $default_value = [];
+        foreach ($overrides as $override) {
+          $options[$override->id()] = $override->label();
+          if ($override->status()) {
+            $default_value[] = $override->id();
+          }
+        }
+
+        $form['prompt_detail']['overrides']['override_status'] = [
+          '#type' => 'checkboxes',
+          '#title' => $this->t('Available overrides'),
+          '#options' => $options,
+          '#default_value' => $default_value,
+          '#description' => $this->t('Check the overrides you want enabled for this agent.'),
+          '#parents' => ['override_status'],
+          '#attributes' => ['class' => ['ai-agent-overrides-list']],
+        ];
+      }
     }
     return $form;
   }
@@ -436,6 +536,7 @@ final class AiAgentForm extends EntityForm {
       $default_action = '';
       $default_values = '';
       $is_hidden = FALSE;
+      $not_break = FALSE;
       if ($form_state->isRebuilding()) {
         $default_action = $form_state->getValue([
           'tool_usage',
@@ -455,6 +556,12 @@ final class AiAgentForm extends EntityForm {
           $property_name,
           'hide_property',
         ]);
+        $not_break = $form_state->getValue([
+          'tool_usage',
+          $tool_definition['id'],
+          $property_name,
+          'not_break',
+        ]);
       }
       elseif ($tool_usage_limits = $this->entity->get('tool_usage_limits')) {
         if (isset($tool_usage_limits[$tool_definition['id']][$property_name])) {
@@ -462,6 +569,7 @@ final class AiAgentForm extends EntityForm {
           $values = is_array($tool_usage_limits[$tool_definition['id']][$property_name]['values']) ? $tool_usage_limits[$tool_definition['id']][$property_name]['values'] : [];
           $default_values = implode("\n", $values);
           $is_hidden = $tool_usage_limits[$tool_definition['id']][$property_name]['hide_property'] ?? FALSE;
+          $not_break = $tool_usage_limits[$tool_definition['id']][$property_name]['not_break'] ?? FALSE;
         }
       }
 
@@ -526,10 +634,26 @@ final class AiAgentForm extends EntityForm {
         ],
       ];
 
+      $form['prompt_detail']['tool_usage'][$tool_definition['id']]['property_restrictions'][$property_name]['not_break'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('One value, no line breaks'),
+        '#description' => $this->t('Check this box if you do not want multiple values to be set on new line. This is useful for forced values of hardcoded prompts for instance.'),
+        '#default_value' => $not_break,
+        '#states' => [
+          'visible' => [
+            ':input[name="tool_usage[' . $tool_definition['id'] . '][property_restrictions][' . $property_name . '][action]"]' => [
+              ['value' => 'only_allow'],
+              'or',
+              ['value' => 'force_value'],
+            ],
+          ],
+        ],
+      ];
+
       $form['prompt_detail']['tool_usage'][$tool_definition['id']]['property_restrictions'][$property_name]['values'] = [
         '#type' => 'textarea',
         '#title' => $this->t('Values'),
-        '#description' => $this->t('The values that are allowed or the value that should be set. If you pick to only allow certain values, you can set the allowed values new line separated if there are more then one. If you pick to force a value, you can set the value that should be set.'),
+        '#description' => $this->t('The values that are allowed or the value that should be set. Depending on the checkbox above named "One value, no line breaks" you can either provide one value or multiple values separated by new lines.'),
         '#default_value' => $default_values,
         '#rows' => 2,
         '#states' => [
@@ -555,6 +679,105 @@ final class AiAgentForm extends EntityForm {
    */
   public function modifyToolDescription(&$form, FormStateInterface $form_state) {
     return $form['prompt_detail']['tool_usage'];
+  }
+
+  /**
+   * Builds enforced tool states keyed by plugin ID.
+   *
+   * @param array|null $statusOverrides
+   *   Optional array of override statuses from form submission.
+   *   Keyed by override ID, value is boolean (enabled/disabled).
+   *
+   * @return array
+   *   A map of tool IDs to enforced state definitions.
+   */
+  private function getOverrideToolEnforcements(?array $statusOverrides = NULL): array {
+    $storage = $this->entityTypeManager->getStorage('ai_agent_override');
+    /** @var \Drupal\ai_agents\AiAgentOverrideInterface[] $overrides */
+    $overrides = $storage->loadByProperties(['parent_agent' => $this->entity->id()]);
+
+    if ($overrides === []) {
+      return [];
+    }
+
+    usort($overrides, static function (AiAgentOverrideInterface $a, AiAgentOverrideInterface $b): int {
+      return [$a->getWeight(), $a->label()] <=> [$b->getWeight(), $b->label()];
+    });
+
+    $enforcements = [];
+
+    foreach ($overrides as $override) {
+      // Determine if override is active: use form submission if available,
+      // otherwise use persisted status.
+      $isActive = $statusOverrides !== NULL
+        ? !empty($statusOverrides[$override->id()])
+        : $override->status();
+
+      if (!$isActive) {
+        continue;
+      }
+
+      foreach ($override->getToolsToAdd() as $toolId) {
+        if ($toolId === '') {
+          continue;
+        }
+        $label = (string) $override->label();
+        if (!isset($enforcements[$toolId]) || $enforcements[$toolId]['state'] !== TRUE) {
+          $enforcements[$toolId] = [
+            'state' => TRUE,
+            'labels' => [$label],
+          ];
+        }
+        else {
+          $enforcements[$toolId]['labels'][] = $label;
+        }
+      }
+
+      foreach ($override->getToolsToRemove() as $toolId) {
+        if ($toolId === '') {
+          continue;
+        }
+        $label = (string) $override->label();
+        $enforcements[$toolId] = [
+          'state' => FALSE,
+          'labels' => [$label],
+        ];
+      }
+    }
+
+    // Normalize label lists.
+    foreach ($enforcements as &$definition) {
+      $definition['labels'] = array_values(array_unique($definition['labels'] ?? []));
+      if ($definition['labels'] === []) {
+        $definition['labels'][] = (string) $this->t('Override');
+      }
+    }
+
+    return $enforcements;
+  }
+
+  /**
+   * Persists the override enable/disable selections.
+   */
+  private function persistOverrideStatuses(?array $submittedStatuses): void {
+    if ($submittedStatuses === NULL || $this->entity->isNew()) {
+      return;
+    }
+
+    $override_storage = $this->entityTypeManager->getStorage('ai_agent_override');
+    /** @var \Drupal\ai_agents\AiAgentOverrideInterface[] $overrides */
+    $overrides = $override_storage->loadByProperties(['parent_agent' => $this->entity->id()]);
+
+    foreach ($overrides as $override) {
+      if (!$override instanceof AiAgentOverrideInterface) {
+        continue;
+      }
+      $shouldBeEnabled = !empty($submittedStatuses[$override->id()]);
+      if ($override->status() !== $shouldBeEnabled) {
+        $override->setStatus($shouldBeEnabled);
+        $override->save();
+      }
+    }
   }
 
   /**
@@ -598,6 +821,20 @@ final class AiAgentForm extends EntityForm {
       $tool = $this->functionCallPluginManager->getDefinition($key);
       $dependencies[] = $tool['provider'];
     }
+    // Apply override enforcements after user selection.
+    // Pass the new override selections so we use the form-submitted status
+    // instead of the persisted status (which hasn't been saved yet).
+    if (!$this->entity->isNew()) {
+      $overrideSelections = $form_state->getValue('override_status');
+      foreach ($this->getOverrideToolEnforcements($overrideSelections) as $toolId => $enforcement) {
+        if ($enforcement['state']) {
+          $tools[$toolId] = TRUE;
+        }
+        else {
+          unset($tools[$toolId]);
+        }
+      }
+    }
     // Tool usage limits.
     $tool_usage_limits = [];
 
@@ -623,7 +860,7 @@ final class AiAgentForm extends EntityForm {
             if ($values['action']) {
               $cleaned_values = str_replace("\r\n", "\n", $values['values'] ?? '');
               // Trim and remove all empty values.
-              $all_values = array_filter(array_map('trim', explode("\n", $cleaned_values)));
+              $all_values = $values['not_break'] ? [trim($cleaned_values)] : array_filter(array_map('trim', explode("\n", $cleaned_values)));
               $tool_usage['property_restrictions'][$property_name]['values'] = $all_values;
             }
             else {
@@ -680,7 +917,13 @@ final class AiAgentForm extends EntityForm {
     $default_information_tools = str_replace("\r\n", "\n", $form_state->getValue('default_information_tools') ?? '');
     $this->entity->set('default_information_tools', $default_information_tools);
 
+    $overrideSelections = $this->entity->isNew() ? NULL : $form_state->getValue('override_status');
+
     $result = parent::save($form, $form_state);
+
+    if ($overrideSelections !== NULL) {
+      $this->persistOverrideStatuses($overrideSelections);
+    }
     $message_args = ['%label' => $this->entity->label()];
     $this->messenger()->addStatus(
       match ($result) {

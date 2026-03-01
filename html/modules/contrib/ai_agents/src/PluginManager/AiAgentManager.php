@@ -14,6 +14,7 @@ use Drupal\ai_agents\Attribute\AiAgent;
 use Drupal\ai_agents\PluginBase\AiAgentEntityWrapper;
 use Drupal\ai_agents\PluginInterfaces\AiAgentInterface;
 use Drupal\ai_agents\Service\AgentHelper;
+use Drupal\ai_agents\Service\AiAgentOverrideApplierInterface;
 use Drupal\ai_agents\Service\ArtifactHelper;
 use Drupal\Component\Uuid\UuidInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -55,6 +56,8 @@ class AiAgentManager extends DefaultPluginManager {
    *   The artifact helper service.
    * @param \Drupal\Component\Uuid\UuidInterface $uuid
    *   The UUID service.
+   * @param \Drupal\ai_agents\Service\AiAgentOverrideApplierInterface $overrideApplier
+   *   The override applier service.
    */
   public function __construct(
     \Traversable $namespaces,
@@ -69,6 +72,7 @@ class AiAgentManager extends DefaultPluginManager {
     protected AiProviderPluginManager $aiProviderPluginManager,
     protected ArtifactHelper $artifactHelper,
     protected UuidInterface $uuid,
+    protected AiAgentOverrideApplierInterface $overrideApplier,
   ) {
     parent::__construct(
       'Plugin/AiAgent',
@@ -98,9 +102,16 @@ class AiAgentManager extends DefaultPluginManager {
    */
   public function createInstance($plugin_id, array $configuration = []): AiAgentInterface {
     // Check if the plugin is an action plugin.
-    if (isset($this->definitions[$plugin_id]['custom_type']) && $this->definitions[$plugin_id]['custom_type'] === 'config') {
+    $isConfigType = isset($this->definitions[$plugin_id]['custom_type'])
+      && $this->definitions[$plugin_id]['custom_type'] === 'config';
+    if ($isConfigType) {
+      $entity = $this->entityTypeManager->getStorage('ai_agent')->load($plugin_id);
+      if ($entity === NULL) {
+        return parent::createInstance($plugin_id, $configuration);
+      }
+
       $instance = new AiAgentEntityWrapper(
-        $this->entityTypeManager->getStorage('ai_agent')->load($plugin_id),
+        $this->overrideApplier->applyOverrides($entity),
         $this->currentUser,
         $this->entityTypeManager,
         $this->functionCallPluginManager,
@@ -134,7 +145,8 @@ class AiAgentManager extends DefaultPluginManager {
         $plugin = $this->createInstance($id);
         // Get the actual configuration entity.
         $entity = $plugin->getAiAgentEntity();
-        if (in_array($tool, array_keys($entity->get('tools')))) {
+        $tools = $entity->get('tools') ?? [];
+        if (is_array($tools) && array_key_exists($tool, $tools)) {
           $agents[$id] = $definition;
         }
       }

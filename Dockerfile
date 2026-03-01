@@ -81,6 +81,7 @@ WORKDIR /var/www/html
 COPY vendor ./vendor/
 COPY html ./html/
 COPY composer.json composer.lock ./
+COPY patches ./patches/
 
 # Create files directories and ensure sites/default is writable
 RUN mkdir -p html/sites/default/files \

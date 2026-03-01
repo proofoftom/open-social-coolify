@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\ai_assistant_api\Form;
 
+use Drupal\ai\Utility\Textarea;
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Extension\ExtensionPathResolver;
 use Drupal\Core\Extension\ModuleHandlerInterface;
@@ -147,7 +148,7 @@ final class AiAssistantForm extends EntityForm {
         '#access' => TRUE,
       ];
 
-      /** @var \Drupal\ai_agent\Entity\AiAgent $agent_entity */
+      /** @var \Drupal\ai_agents\Entity\AiAgent $agent_entity */
       $agent_entity = $entity->get('ai_agent') ? $this->entityTypeManager->getStorage('ai_agent')->load($entity->get('ai_agent')) : NULL;
     }
 
@@ -181,6 +182,14 @@ final class AiAssistantForm extends EntityForm {
         'rows' => 2,
         'placeholder' => $this->t('An assistant that can find old articles and also publish and unpublish them.'),
       ],
+      // This property will land into core soon, see
+      // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+      // after this is added to Drupal core.
+      '#normalize_newlines' => TRUE,
+      // Until that the custom value callback is needed. Should be removed
+      // after the issue mentioned above is merged into core and the minimum
+      // supported Drupal version includes `#normalize_newlines` property.
+      '#value_callback' => [Textarea::class, 'valueCallback'],
     ];
 
     $form['instructions'] = [
@@ -192,6 +201,14 @@ final class AiAssistantForm extends EntityForm {
         'rows' => 15,
         'placeholder' => $this->t('If the user asks questions about unpublished articles, make sure to add status unpublished somewhere in the lookup.'),
       ],
+      // This property will land into core soon, see
+      // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+      // after this is added to Drupal core.
+      '#normalize_newlines' => TRUE,
+      // Until that the custom value callback is needed. Should be removed
+      // after the issue mentioned above is merged into core and the minimum
+      // supported Drupal version includes `#normalize_newlines` property.
+      '#value_callback' => [Textarea::class, 'valueCallback'],
     ];
 
     if ($old_entity) {
@@ -416,6 +433,14 @@ final class AiAssistantForm extends EntityForm {
         'placeholder' => $this->t('I am sorry, something went terribly wrong. Please try to ask me again.'),
         'rows' => 2,
       ],
+      // This property will land into core soon, see
+      // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+      // after this is added to Drupal core.
+      '#normalize_newlines' => TRUE,
+      // Until that the custom value callback is needed. Should be removed
+      // after the issue mentioned above is merged into core and the minimum
+      // supported Drupal version includes `#normalize_newlines` property.
+      '#value_callback' => [Textarea::class, 'valueCallback'],
     ];
 
     $form['advanced']['specific_error_messages'] = [
@@ -436,6 +461,14 @@ final class AiAssistantForm extends EntityForm {
           'placeholder' => $exception['placeholder'] ?? NULL,
           'rows' => 2,
         ],
+        // This property will land into core soon, see
+        // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+        // after this is added to Drupal core.
+        '#normalize_newlines' => TRUE,
+        // Until that the custom value callback is needed. Should be removed
+        // after the issue mentioned above is merged into core and the minimum
+        // supported Drupal version includes `#normalize_newlines` property.
+        '#value_callback' => [Textarea::class, 'valueCallback'],
       ];
     }
 
@@ -458,6 +491,14 @@ final class AiAssistantForm extends EntityForm {
             ':input[name="ai_agent"]' => ['value' => ''],
           ],
         ],
+        // This property will land into core soon, see
+        // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+        // after this is added to Drupal core.
+        '#normalize_newlines' => TRUE,
+        // Until that the custom value callback is needed. Should be removed
+        // after the issue mentioned above is merged into core and the minimum
+        // supported Drupal version includes `#normalize_newlines` property.
+        '#value_callback' => [Textarea::class, 'valueCallback'],
       ];
       $form['advanced']['system_prompt'] = [
         '#type' => 'textarea',
@@ -487,6 +528,14 @@ final class AiAssistantForm extends EntityForm {
             ':input[name="ai_agent"]' => ['value' => ''],
           ],
         ],
+        // This property will land into core soon, see
+        // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+        // after this is added to Drupal core.
+        '#normalize_newlines' => TRUE,
+        // Until that the custom value callback is needed. Should be removed
+        // after the issue mentioned above is merged into core and the minimum
+        // supported Drupal version includes `#normalize_newlines` property.
+        '#value_callback' => [Textarea::class, 'valueCallback'],
       ];
     }
 

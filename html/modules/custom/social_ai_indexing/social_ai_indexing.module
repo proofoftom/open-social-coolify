@@ -1,0 +1,109 @@
+<?php
+
+/**
+ * @file
+ * Primary module hooks for Social AI Indexing.
+ */
+
+/**
+ * Implements hook_theme().
+ */
+function social_ai_indexing_theme(): array {
+  return [
+    'social_ai_related_content' => [
+      'variables' => [
+        'items' => [],
+      ],
+    ],
+    'block__social_ai_related_content' => [
+      'base hook' => 'block',
+    ],
+    'social_ai_overview' => [
+      'variables' => [
+        'query' => '',
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_preprocess_block().
+ */
+function social_ai_indexing_preprocess_block(array &$variables): void {
+  if (($variables['elements']['#plugin_id'] ?? '') !== 'social_ai_related_content') {
+    return;
+  }
+  $bundle = $variables['elements']['#configuration']['bundle'] ?? '';
+  switch ($bundle) {
+    case 'topic':
+      $variables['subtitle'] = t('in the community');
+      break;
+    case 'event':
+      $variables['subtitle'] = t('happening soon');
+      break;
+    default:
+      $variables['subtitle'] = t('in the community');
+  }
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for ai_deepchat templates.
+ *
+ * Injects the current Group ID into DeepChat connect JSON so the RAG
+ * search pipeline can scope results to the current Group context.
+ *
+ * NOTE: We use hook_preprocess_ai_deepchat instead of hook_deepchat_settings
+ * because in DeepChatFormBlock::getDeepChatParameters(), hook_deepchat_settings
+ * fires at line 634 BEFORE the connect key is set (line 644). By preprocess
+ * time, connect exists as a JSON string in $variables['deepchat_settings'].
+ *
+ * IMPORTANT: Do NOT use early return in this function. The messageStyles
+ * configuration below must run on ALL pages, not just Group pages.
+ */
+function social_ai_indexing_preprocess_ai_deepchat(array &$variables): void {
+  // --- Group context injection (UI-02) ---
+  // Detect current Group from route context using the group module's
+  // context provider (not Open Social's CurrentGroupService).
+  $group = NULL;
+  try {
+    $contexts = \Drupal::service('context.repository')
+      ->getRuntimeContexts(['@group.group_route_context:group']);
+    $group = $contexts['@group.group_route_context:group']->getContextData()->getValue();
+  }
+  catch (\Exception $e) {
+    // Not on a group route or context unavailable — community-wide mode.
+  }
+  if ($group instanceof \Drupal\group\Entity\GroupInterface) {
+    // The connect key is a JSON-encoded string at this point.
+    $connect_json = $variables['deepchat_settings']['connect'] ?? NULL;
+    if (is_string($connect_json)) {
+      $connect = json_decode($connect_json, TRUE);
+      if (is_array($connect)) {
+        // Add group_id to the contexts sent with each chatbot message.
+        $connect['additionalBodyProps']['contexts']['group_id'] = (int) $group->id();
+        $variables['deepchat_settings']['connect'] = json_encode($connect);
+      }
+    }
+  }
+
+  // --- AI visual distinction (UI-05) ---
+  // Add visual distinction for AI vs user messages via DeepChat messageStyles.
+  // messageStyles is a JSON string at preprocess time.
+  $message_styles_json = $variables['deepchat_settings']['messageStyles'] ?? '{}';
+  $message_styles = is_string($message_styles_json) ? json_decode($message_styles_json, TRUE) : [];
+  if (!is_array($message_styles)) {
+    $message_styles = [];
+  }
+  $message_styles['default']['ai']['bubble']['borderLeft'] = '3px solid #4a90d9';
+  $message_styles['default']['ai']['bubble']['backgroundColor'] = '#f8f9fa';
+  $variables['deepchat_settings']['messageStyles'] = json_encode($message_styles);
+}
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * Attaches DeepChat link handler and Related Content citation styles globally.
+ */
+function social_ai_indexing_page_attachments(array &$attachments) {
+  $attachments['#attached']['library'][] = 'social_ai_indexing/deepchat-links';
+}

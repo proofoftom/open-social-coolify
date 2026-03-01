@@ -6,12 +6,20 @@ use Drupal\Core\Access\AccessResult;
 use Drupal\Core\Access\AccessResultInterface;
 use Drupal\Core\Routing\Access\AccessInterface;
 use Drupal\Core\Session\AccountInterface;
+use Drupal\role_delegation\DelegatableRolesInterface;
 use Drupal\role_delegation\PermissionGenerator;
 
 /**
- * Checks access for displaying configuration edit user pages.
+ * Checks access for the /user/%/roles page.
  */
 class RoleDelegationAccessCheck implements AccessInterface {
+
+  /**
+   * The delegatable_roles service.
+   *
+   * @var \Drupal\role_delegation\DelegatableRolesInterface
+   */
+  protected $delegatableRoles;
 
   /**
    * The permission generator service.
@@ -30,12 +38,15 @@ class RoleDelegationAccessCheck implements AccessInterface {
   /**
    * The Role Delegation access check.
    *
+   * @param \Drupal\role_delegation\DelegatableRolesInterface $delegatable_roles
+   *   The delegatable_roles service.
    * @param \Drupal\role_delegation\PermissionGenerator $permission_generator
    *   The role delegation service.
    * @param \Drupal\Core\Session\AccountInterface $current_user
    *   The current user.
    */
-  public function __construct(PermissionGenerator $permission_generator, AccountInterface $current_user) {
+  public function __construct(DelegatableRolesInterface $delegatable_roles, PermissionGenerator $permission_generator, AccountInterface $current_user) {
+    $this->delegatableRoles = $delegatable_roles;
     $this->permissionGenerator = $permission_generator;
     $this->currentUser = $current_user;
   }
@@ -54,23 +65,18 @@ class RoleDelegationAccessCheck implements AccessInterface {
       $account = $this->currentUser;
     }
 
-    // No need for this access when the current user has the 'administer users'
+    // Deny access when the current user has the 'administer users'
     // permission. Roles can be edited on the user edit page.
     if ($account->hasPermission('administer users')) {
       return AccessResult::neutral()->cachePerPermissions();
     }
 
-    // If the user has any of the "assign custom role" permissions then we give
-    // them access to the form.
-    foreach ($this->permissionGenerator->rolePermissions() as $perm => $title) {
-      if ($account->hasPermission($perm)) {
-        return AccessResult::allowed()->cachePerPermissions();
-      }
+    // Deny access when the user is not allowed to assign any roles.
+    if (!$this->delegatableRoles->getAssignableRoles($account)) {
+      return AccessResult::neutral()->cachePerPermissions();
     }
 
-    // If the user can administer all permissions then they can also view the
-    // roles page.
-    return AccessResult::allowedIfHasPermission($account, 'assign all roles');
+    return AccessResult::allowed()->cachePerPermissions();
   }
 
 }

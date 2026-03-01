@@ -16,6 +16,11 @@ use League\OAuth2\Server\Repositories\ScopeRepositoryInterface;
  */
 class ScopeRepository implements ScopeRepositoryInterface {
 
+  protected const SCOPE_FIELD = [
+    'client_credentials' => 'scopes',
+    'authorization_code' => 'authorization_code_scopes',
+  ];
+
   /**
    * The entity type manager.
    *
@@ -61,26 +66,30 @@ class ScopeRepository implements ScopeRepositoryInterface {
     }
 
     $user = $userIdentifier ? $this->entityTypeManager->getStorage('user')->load($userIdentifier) : $default_user;
-    if (!$user) {
+    if (!$user && $grantType !== 'refresh_token') {
       return [];
     }
 
     $default_scopes = [];
     $allowed_scopes = [];
     $client_drupal_entity = $clientEntity->getDrupalEntity();
-    if (!$client_drupal_entity->get('scopes')->isEmpty()) {
-      foreach ($client_drupal_entity->get('scopes')->getScopes() as $scope) {
-        $default_scope = $this->scopeFactory($scope);
-        $default_scopes[] = $default_scope;
-        $allowed_scopes[] = $default_scope->getIdentifier();
-      }
+    // Only process default scopes if the grant type has a mapped field.
+    if ($grantType !== 'refresh_token' && isset(static::SCOPE_FIELD[$grantType])) {
+      $scope_field = static::SCOPE_FIELD[$grantType];
+      if (!$client_drupal_entity->get($scope_field)->isEmpty()) {
+        foreach ($client_drupal_entity->get($scope_field)->getScopes() as $scope) {
+          $default_scope = $this->scopeFactory($scope);
+          $default_scopes[] = $default_scope;
+          $allowed_scopes[] = $default_scope->getIdentifier();
+        }
 
-      // Limit the scopes if default scopes are set on the consumer for the
-      // client credentials grant type.
-      if ($grantType === 'client_credentials') {
-        foreach ($scopes as $scope) {
-          if (!in_array($scope->getIdentifier(), $allowed_scopes)) {
-            throw OAuthServerException::invalidScope($scope->getIdentifier());
+        // Limit the scopes if default scopes are set on the consumer for the
+        // client credentials grant type.
+        if ($grantType === 'client_credentials') {
+          foreach ($scopes as $scope) {
+            if (!in_array($scope->getIdentifier(), $allowed_scopes)) {
+              throw OAuthServerException::invalidScope($scope->getIdentifier());
+            }
           }
         }
       }

@@ -1,0 +1,28 @@
+services:
+  social_ai_indexing.permission_filter:
+    class: Drupal\social_ai_indexing\Service\PermissionFilterService
+    arguments: ['@group.membership_loader', '@current_user', '@current_route_match', '@entity_type.manager']
+
+  social_ai_indexing.search_query_subscriber:
+    class: Drupal\social_ai_indexing\EventSubscriber\SearchQuerySubscriber
+    arguments: ['@social_ai_indexing.permission_filter', '@current_user', '@ai_assistant_api.runner']
+    tags:
+      - { name: event_subscriber }
+
+  social_ai_indexing.hybrid_search:
+    class: Drupal\social_ai_indexing\Service\HybridSearchService
+    arguments:
+      - '@social_ai_indexing.permission_filter'
+      - '@entity_type.manager'
+
+  social_ai_indexing.ai_overview:
+    class: Drupal\social_ai_indexing\Service\AiOverviewService
+    arguments:
+      - '@social_ai_indexing.hybrid_search'
+      - '@ai.provider'
+
+  social_ai_indexing.related_content:
+    class: Drupal\social_ai_indexing\Service\RelatedContentService
+    arguments:
+      - '@entity_type.manager'
+      - '@social_ai_indexing.permission_filter'

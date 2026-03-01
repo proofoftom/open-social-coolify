@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -9,7 +9,7 @@
 
 .document-outline-container {
   background: var(--ck-color-toolbar-background);
-  border: 1px solid var(--ck-color-toolbar-border);
+  border: 1px solid var(--ck-color-base-border);
   border-right: 0;
   overflow: hidden;
   width: 100%;
@@ -45,4 +45,11 @@ tr.draggable .document-outline-container {
 
 .document-outline-container.collapsed .ck-document-outline {
   display: none;
+}
+
+/* Gin theme specific */
+body[class*="gin--"] {
+  --ck-document-outline-item-default-color: var(--gin-color-text);
+  --ck-document-outline-item-active-color: var(--gin-color-primary);
+  --ck-document-outline-item-hover-state-color: var(--gin-color-text-light);
 }

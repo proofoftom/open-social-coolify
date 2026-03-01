@@ -16,6 +16,7 @@ models:
     context_length: 32768
     capabilities:
       - chat
+      - chat_with_tools
   deepseek-coder:
     name: DeepSeek Coder
     description: Code generation and analysis model
@@ -23,3 +24,4 @@ models:
     context_length: 32768
     capabilities:
       - chat
+      - chat_with_tools

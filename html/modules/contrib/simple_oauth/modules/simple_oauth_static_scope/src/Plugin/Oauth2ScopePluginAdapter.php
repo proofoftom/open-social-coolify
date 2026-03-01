@@ -55,12 +55,7 @@ class Oauth2ScopePluginAdapter implements Oauth2ScopeAdapterInterface, Container
    * {@inheritdoc}
    */
   public function loadMultiple(?array $ids = NULL): array {
-    try {
-      return $this->scopeManager->getInstances($ids);
-    }
-    catch (PluginNotFoundException $e) {
-      return [];
-    }
+    return $this->scopeManager->getInstances($ids);
   }
 
   /**
@@ -87,6 +82,16 @@ class Oauth2ScopePluginAdapter implements Oauth2ScopeAdapterInterface, Container
     catch (PluginNotFoundException $e) {
       return [];
     }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function loadByGrantType(string $grant_type): array {
+    $scopes = $this->loadMultiple();
+    return array_filter($scopes, function (Oauth2ScopeInterface $scope) use ($grant_type) {
+      return $scope->isGrantTypeEnabled($grant_type);
+    });
   }
 
 }

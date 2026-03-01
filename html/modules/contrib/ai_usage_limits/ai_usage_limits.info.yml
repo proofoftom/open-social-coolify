@@ -1,0 +1,8 @@
+name: AI usage limits
+type: module
+description: 'Provides token usage limits per AI provider for the Drupal AI module.'
+package: AI
+core_version_requirement: ^10.2 || ^11
+dependencies:
+  - ai
+configure: ai_usage_limits.settings

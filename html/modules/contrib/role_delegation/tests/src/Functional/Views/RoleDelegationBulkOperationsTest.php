@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Drupal\Tests\role_delegation\Functional\Views;
 
 use Drupal\Component\Render\FormattableMarkup;
-use Drupal\system\Entity\Action;
 use Drupal\Tests\BrowserTestBase;
+use Drupal\system\Entity\Action;
 use Drupal\views\Entity\View;
 
 /**

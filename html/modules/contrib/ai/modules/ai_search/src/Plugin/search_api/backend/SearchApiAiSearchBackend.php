@@ -467,7 +467,7 @@ class SearchApiAiSearchBackend extends AiSearchBackendPluginBase implements Plug
     // Prepare params.
     $params = [
       'collection_name' => $this->configuration['database_settings']['collection'],
-      'output_fields' => ['id', 'drupal_entity_id', 'drupal_long_id', 'content'],
+      'output_fields' => ['id', 'drupal_entity_id', 'drupal_long_id', 'content', 'citation_url', 'citation_title', 'citation_type'],
       // If an access check is in place, multiple iterations of the query are
       // run to attempt to reach this limit.
       'limit' => (int) $query->getOption('limit', 10),

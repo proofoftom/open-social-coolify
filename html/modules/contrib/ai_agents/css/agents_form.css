@@ -4,3 +4,13 @@
   grid-template-columns: 1fr 1fr 1fr;
   grid-gap: 10px;
 }
+
+.override-forced-enabled {
+  padding-left: 1rem;
+  border-left: 4px solid #28a745;
+}
+
+.override-forced-disabled {
+  padding-left: 1rem;
+  border-left: 4px solid #dc3545;
+}

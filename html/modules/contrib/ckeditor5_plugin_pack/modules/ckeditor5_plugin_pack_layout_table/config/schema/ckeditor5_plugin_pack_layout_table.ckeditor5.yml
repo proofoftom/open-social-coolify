@@ -104,3 +104,6 @@ ckeditor5.plugin.ckeditor5_plugin_pack_layout_table__table_properties:
                 type: string|integer
               table_cell_border:
                 type: string|integer
+    disable_properties:
+      type: boolean
+      label: 'Disable properties'

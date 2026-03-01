@@ -7,6 +7,8 @@ use Drupal\TestTools\Random;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\simple_oauth\Entity\Oauth2Scope;
 use Drupal\simple_oauth\Oauth2ScopeInterface;
+use Lcobucci\JWT\Encoding\JoseEncoder;
+use Lcobucci\JWT\Token\Parser;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -64,6 +66,35 @@ class ClientCredentialsTest extends AuthorizedRequestBase {
     $response = $this->httpKernel->handle($request);
     $parsed_response = $this->assertValidTokenResponse($response);
     $this->assertAccessTokenOnResource($parsed_response['access_token']);
+  }
+
+  /**
+   * Test that JWT tokens include the iss (issuer) claim per RFC 8725.
+   */
+  public function testJwtIssuerClaim(): void {
+    $parameters = [
+      'grant_type' => 'client_credentials',
+      'client_id' => $this->client->getClientId(),
+      'client_secret' => $this->clientSecret,
+      'scope' => $this->scope,
+    ];
+    $request = Request::create($this->url->toString(), 'POST', $parameters);
+    $response = $this->httpKernel->handle($request);
+    $parsed_response = Json::decode((string) $response->getContent());
+
+    $this->assertNotEmpty($parsed_response['access_token']);
+
+    // Parse the JWT token to verify the iss claim is present.
+    $parser = new Parser(new JoseEncoder());
+    $token = $parser->parse($parsed_response['access_token']);
+
+    // Verify the iss claim is present per RFC 8725 Section 3.1.
+    $this->assertTrue($token->claims()->has('iss'), 'JWT token should include the iss (issuer) claim per RFC 8725 Section 3.1');
+
+    // Verify the issuer is the expected Drupal site URL.
+    $issuer = $token->claims()->get('iss');
+    $this->assertNotEmpty($issuer, 'Issuer claim should not be empty');
+    $this->assertStringStartsWith('http', $issuer, 'Issuer should be a valid URL');
   }
 
   /**

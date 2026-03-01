@@ -1,0 +1,74 @@
+<?php
+
+/**
+ * @file
+ * Qdrant Vector Database Provider module implementation.
+ *
+ * Contains hooks and helper functions for integrating Qdrant vector database
+ * with Drupal's Search API and AI modules.
+ */
+
+use Drupal\ai_search\Plugin\search_api\backend\SearchApiAiSearchBackend;
+use Drupal\Core\Field\BaseFieldDefinition;
+use Drupal\Core\Field\TypedData\FieldItemDataDefinitionInterface;
+use Drupal\search_api\IndexInterface;
+
+/**
+ * Implements hook_search_api_index_update().
+ *
+ * When the search API index is updated, check the fields are correctly
+ * setup in Qdrant.
+ */
+function ai_vdb_provider_qdrant_search_api_index_update(IndexInterface $index)
+{
+    $server = $index->getServerInstance();
+    if (!($server->getBackend() instanceof SearchApiAiSearchBackend)) {
+        return;
+    }
+    $backend_config = $server->getBackendConfig();
+    if (!isset($backend_config['database'])) {
+        return;
+    }
+    if ($backend_config['database'] !== 'qdrant') {
+        return;
+    }
+    $ai_vdb_provider_qdrant = \Drupal::service('ai.vdb_provider')->createInstance('qdrant');
+    $connection = $ai_vdb_provider_qdrant->getConnection($backend_config['database_settings']['database_name']);
+    \Drupal::service('ai_vdb_provider_qdrant.client')->updateFields(
+        $index->getFields(),
+        $backend_config['database_settings']['collection'],
+        $connection,
+    );
+}
+
+/**
+ * Determines if a Search API field is multiple-valued.
+ *
+ * @param \Drupal\search_api\Item\FieldInterface $field
+ *   The Search API field to check.
+ *
+ * @return bool
+ *   TRUE if the field can hold multiple values, FALSE otherwise.
+ */
+function ai_vdb_provider_qdrant_is_field_multiple($field)
+{
+    $data_definition = $field->getDataDefinition();
+
+    // Check if this is a field-backed property (has FieldItemDataDefinitionInterface).
+    // Processor properties only implement DataDefinitionInterface which doesn't
+    // have getFieldDefinition().
+    if (!$data_definition instanceof FieldItemDataDefinitionInterface) {
+        // For processor properties and other non-field data definitions,
+        // fall back to checking if the data definition is a list.
+        return $data_definition->isList();
+    }
+
+    $field_definition = $data_definition->getFieldDefinition();
+    if ($field_definition instanceof BaseFieldDefinition) {
+        $field_cardinality = $field_definition->getCardinality();
+    } else {
+        $field_cardinality =
+            $field_definition->get('fieldStorage')->getCardinality();
+    }
+    return $field_cardinality !== 1;
+}

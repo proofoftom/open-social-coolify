@@ -11,7 +11,7 @@ A lightweight emoji picker, distributed as a web component.
 
 **Features:**
 
-- Supports [Emoji v15.1](https://emojipedia.org/emoji-15.1/) (depending on OS) and custom emoji
+- Supports [Emoji v17.0](https://emojipedia.org/emoji-17.0) (depending on OS) and custom emoji
 - Uses IndexedDB, so it consumes [far less memory](https://nolanlawson.com/2020/06/28/introducing-emoji-picker-element-a-memory-efficient-emoji-picker-for-the-web/) than other emoji pickers
 - [Small bundle size](https://bundlephobia.com/result?p=emoji-picker-element) (~12.5kB min+gz)
 - Renders native emoji by default, with support for custom fonts
@@ -39,6 +39,7 @@ A lightweight emoji picker, distributed as a web component.
     + [Picker](#picker)
       - [Events](#events)
         * [`emoji-click`](#emoji-click)
+        * [`emoji-click-sync`](#emoji-click-sync)
         * [`skin-tone-change`](#skin-tone-change)
       - [Internationalization](#internationalization)
         * [Built-in translations](#built-in-translations)
@@ -405,6 +406,44 @@ picker.addEventListener('emoji-click', event => {
 Note that `unicode` will represent whatever the emoji should look like
 with the given `skinTone`. If the `skinTone` is 0, or if the emoji has
 no skin tones, then no skin tone is applied to `unicode`.
+
+##### `emoji-click-sync`
+
+> [!NOTE]  
+> Most likely, you should only use this event if you need to copy an emoji to the clipboard,
+> due to [a Safari bug](https://github.com/nolanlawson/emoji-picker-element/issues/281#issuecomment-3256832247).
+
+The `emoji-click-sync` event is exactly the same as `emoji-click`, except that the event is fired
+synchronously relative to the original `click` event, and the `event.detail` is a `Promise` that must be `await`ed:
+
+```js
+picker.addEventListener('emoji-click-sync', async event => {
+  console.log(await event.detail); // same as above
+});
+```
+
+This is useful to work around [a Safari bug](https://github.com/nolanlawson/emoji-picker-element/issues/281#issuecomment-3256832247)
+when using the [Clipboard API](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard), which causes 
+the error `NotAllowedError: The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission.`
+This error occurs due to Safari not recognizing that the `emoji-click` event is user-initiated due to the presence of
+`await`s for IndexedDB data.
+
+Example of correct usage to copy an emoji to the clipboard:
+
+```js
+picker.addEventListener('emoji-click-sync', async event => {
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/plain': e.detail.then(({ unicode }) => unicode),
+    })]);
+    console.log('Copied to clipboard!');
+  } catch (err) {
+    console.log('Failed to copy to clipboard', err);
+  }
+});
+```
+
+If you don't need to work around the Safari bug, then you can just use the `emoji-click` event instead.
 
 ##### `skin-tone-change`
 
@@ -885,9 +924,7 @@ more details on shortcodes [in the Emojibase docs](https://emojibase.dev/docs/sh
 
 For optimal cache performance, it's recommended that your server expose an `ETag` header. If so, `emoji-picker-element` can avoid re-downloading the entire JSON file over and over again. Instead, it will do a `HEAD` request and just check the `ETag`.
 
-If the server hosting the JSON file is not the same as the one containing the emoji picker, then the cross-origin server will also need to expose `Access-Control-Allow-Origin: *` and `Access-Control-Allow-Headers: ETag` (or `Access-Control-Allow-Headers: *` ). `jsdelivr` already does this, which is partly why it is the default.
-
-Note that [Safari does not currently support `Access-Control-Allow-Headers: *`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers#Browser_compatibility), but it does support `Access-Control-Allow-Headers: ETag`.
+If the server hosting the JSON file is not the same as the one containing the emoji picker, then the cross-origin server will also need to expose `Access-Control-Allow-Origin: *` and `Access-Control-Expose-Headers: ETag` (or `Access-Control-Expose-Headers: *` ). `jsdelivr` already does this, which is partly why it is the default.
 
 If `emoji-picker-element` cannot use the `ETag` for any reason, it will fall back to the less performant option, doing a full `GET` request on every page load.
 

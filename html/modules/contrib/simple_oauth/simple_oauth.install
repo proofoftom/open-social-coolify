@@ -9,10 +9,19 @@ use Drupal\Core\Config\FileStorage;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\path_alias\Entity\PathAlias;
 use Drupal\simple_oauth\Entity\Oauth2Scope;
 use Drupal\simple_oauth\Entity\Oauth2TokenStorageSchema;
 use Drupal\simple_oauth\Oauth2ScopeInterface;
 use Drupal\simple_oauth\Plugin\Oauth2GrantManager;
+
+/**
+ * Implements hook_install().
+ */
+function simple_oauth_install() {
+  // Create path alias for JWKS endpoint to support /.well-known/jwks.json.
+  _simple_oauth_create_jwks_alias();
+}
 
 /**
  * Define the default batch size.
@@ -280,7 +289,12 @@ function simple_oauth_update_8603() {
  * Migrate roles used as scope and migrate settings to the consumer.
  */
 function simple_oauth_update_8604() {
-  $scopes = [];
+  // In case we are updating from 5.x to 6.0.6 or later, the authorization code
+  // scopes field does not exist yet in the database but is dynamically added in
+  // simple_oauth_entity_base_field_info(). This would cause a fatal error when
+  // trying to load consumer entities. Make sure the table exists.
+  simple_oauth_update_8608();
+
   $consumers = \Drupal::entityTypeManager()->getStorage('consumer')->loadMultiple();
   $grant_types = array_keys(Oauth2GrantManager::getAvailablePluginsAsOptions());
   $config = \Drupal::configFactory()->get('simple_oauth.settings');
@@ -291,26 +305,30 @@ function simple_oauth_update_8604() {
     ->execute()
     ->fetchAll();
 
-  $scopes = [];
   foreach ($role_values as $role_value) {
     /** @var \Drupal\user\RoleInterface $role */
     $role = \Drupal::entityTypeManager()->getStorage('user_role')->load($role_value->roles_target_id);
-    // Scope doesn't exist, so we need to create one.
-    if (!isset($scopes[$role->id()])) {
-      $scope = Oauth2Scope::create([
-        'name' => $role->id(),
-        'description' => $role->label(),
-        'grant_types' => [
-          'authorization_code' => ['status' => TRUE],
-          'client_credentials' => ['status' => TRUE],
-          'refresh_token' => ['status' => TRUE],
-        ],
-        'granularity' => Oauth2ScopeInterface::GRANULARITY_ROLE,
-        'role' => $role->id(),
-      ]);
-      $scope->save();
-      $scopes[$role->id()] = $scope;
+    // Role doesn't exist, so don't do anything.
+    if (!$role) {
+      continue;
     }
+    // Scope already exist.
+    if (\Drupal::entityTypeManager()->getStorage('oauth2_scope')->load($role->id())) {
+      continue;
+    }
+
+    // Scope doesn't exist, so we need to create one.
+    Oauth2Scope::create([
+      'name' => $role->id(),
+      'description' => $role->label(),
+      'grant_types' => [
+        'authorization_code' => ['status' => TRUE],
+        'client_credentials' => ['status' => TRUE],
+        'refresh_token' => ['status' => TRUE],
+      ],
+      'granularity' => Oauth2ScopeInterface::GRANULARITY_ROLE,
+      'role' => $role->id(),
+    ])->save();
 
     $insert_query = $database->insert('consumer__scopes')
       ->fields([
@@ -336,6 +354,17 @@ function simple_oauth_update_8604() {
 
   foreach ($consumers as $consumer) {
     foreach ($grant_types as $delta => $grant_type) {
+      $grant_type_exist = $database->select('consumer__grant_types', 'gc')
+        ->fields('gc', ['entity_id'])
+        ->condition('gc.entity_id', $consumer->id())
+        ->condition('gc.langcode', $consumer->language()->getId())
+        ->condition('gc.grant_types_value', $grant_type)
+        ->execute()
+        ->fetchField();
+      // Grant type already exist.
+      if ($grant_type_exist) {
+        continue;
+      }
       $insert_query = $database->insert('consumer__grant_types')
         ->fields([
           'bundle',
@@ -371,7 +400,9 @@ function simple_oauth_update_8604() {
   // Remove roles field.
   $entity_definition_update_manager = \Drupal::entityDefinitionUpdateManager();
   $roles_field_definition = $entity_definition_update_manager->getFieldStorageDefinition('roles', 'consumer');
-  $entity_definition_update_manager->uninstallFieldStorageDefinition($roles_field_definition);
+  if ($roles_field_definition) {
+    $entity_definition_update_manager->uninstallFieldStorageDefinition($roles_field_definition);
+  }
 }
 
 /**
@@ -436,4 +467,59 @@ function simple_oauth_update_8607() {
 
     $config->save(TRUE);
   }
+}
+
+/**
+ * Helper function to create or update the JWKS path alias.
+ */
+function _simple_oauth_create_jwks_alias() {
+  $path = '/oauth/jwks';
+  $alias = '/.well-known/jwks.json';
+
+  // Check if alias already exists.
+  $existing_alias = \Drupal::entityTypeManager()
+    ->getStorage('path_alias')
+    ->loadByProperties(['alias' => $alias]);
+
+  if (empty($existing_alias)) {
+    // Create new alias.
+    PathAlias::create([
+      'path' => $path,
+      'alias' => $alias,
+      'langcode' => 'en',
+    ])->save();
+  }
+  else {
+    // Update existing alias to point to correct path.
+    /** @var \Drupal\path_alias\Entity\PathAlias $alias_entity */
+    $alias_entity = reset($existing_alias);
+    if ($alias_entity->getPath() !== $path) {
+      $alias_entity->setPath($path);
+      $alias_entity->save();
+    }
+  }
+}
+
+/**
+ * Add an authorization code scopes field.
+ */
+function simple_oauth_update_8608(): void {
+  $manager = \Drupal::entityDefinitionUpdateManager();
+  $definition = BaseFieldDefinition::create('oauth2_scope_reference')
+    ->setLabel(new TranslatableMarkup('Authorization code scopes'))
+    ->setDescription(new TranslatableMarkup('This selection can be overridden by scopes passed as parameters to the authorization requests.'))
+    ->setDisplayOptions('view', [
+      'label' => 'inline',
+      'type' => 'oauth2_scope_reference_label',
+      'weight' => -4,
+    ])
+    ->setDisplayOptions('form', [
+      'type' => 'oauth2_scope_reference',
+      'weight' => -4,
+    ])
+    ->setRevisionable(TRUE)
+    ->setTranslatable(FALSE)
+    ->setCardinality(FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED);
+
+  $manager->installFieldStorageDefinition('authorization_code_scopes', 'consumer', 'simple_oauth', $definition);
 }

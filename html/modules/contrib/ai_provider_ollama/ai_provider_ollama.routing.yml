@@ -1,0 +1,7 @@
+ai_provider_ollama.settings_form:
+  path: '/admin/config/ai/providers/ollama'
+  defaults:
+    _form: '\Drupal\ai_provider_ollama\Form\OllamaConfigForm'
+    _title: 'Setup Ollama Authentication'
+  requirements:
+    _permission: 'administer ai providers'

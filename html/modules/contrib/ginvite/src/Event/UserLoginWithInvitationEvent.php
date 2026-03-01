@@ -8,7 +8,6 @@ namespace Drupal\ginvite\Event;
  * @package Drupal\ginvite\Event
  */
 class UserLoginWithInvitationEvent extends InvitationBaseEvent {
-
   const EVENT_NAME = 'user_login_with_invitation';
 
 }

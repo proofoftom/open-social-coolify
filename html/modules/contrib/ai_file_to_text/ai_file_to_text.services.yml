@@ -1,0 +1,37 @@
+services:
+  ai_file_to_text.extractor.csv:
+    class: Drupal\ai_file_to_text\Extractor\CsvExtractor
+
+  ai_file_to_text.extractor.txt:
+    class: Drupal\ai_file_to_text\Extractor\TxtExtractor
+
+  ai_file_to_text.extractor.word:
+    class: Drupal\ai_file_to_text\Extractor\WordExtractor
+
+  ai_file_to_text.extractor.odt:
+    class: Drupal\ai_file_to_text\Extractor\OdtExtractor
+
+  ai_file_to_text.extractor.ods:
+    class: Drupal\ai_file_to_text\Extractor\OdsExtractor
+
+  ai_file_to_text.extractor.pdf:
+    class: Drupal\ai_file_to_text\Extractor\PdfExtractor
+
+  ai_file_to_text.extractor.pdf_poppler:
+    class: Drupal\ai_file_to_text\Extractor\PopplerPdfExtractor
+
+  ai_file_to_text.extractor.md:
+    class: Drupal\ai_file_to_text\Extractor\MdExtractor
+
+  ai_file_to_text.extractor_manager:
+    class: Drupal\ai_file_to_text\Extractor\FileExtractorManager
+    arguments:
+      - '@ai_file_to_text.extractor.md'
+      - '@ai_file_to_text.extractor.csv'
+      - '@ai_file_to_text.extractor.txt'
+      - '@ai_file_to_text.extractor.word'
+      - '@ai_file_to_text.extractor.odt'
+      - '@ai_file_to_text.extractor.ods'
+      - '@ai_file_to_text.extractor.pdf'
+      - '@ai_file_to_text.extractor.pdf_poppler'
+      - '@ai_file_to_text.extractor.md'

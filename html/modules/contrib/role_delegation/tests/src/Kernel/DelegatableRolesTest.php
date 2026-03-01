@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Drupal\Tests\role_delegation\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
-use Drupal\role_delegation\DelegatableRolesInterface;
 use Drupal\Tests\user\Traits\UserCreationTrait;
+use Drupal\role_delegation\DelegatableRolesInterface;
 use Drupal\user\Entity\Role;
 
 /**
@@ -23,6 +23,11 @@ class DelegatableRolesTest extends KernelTestBase {
    */
   protected static $modules = ['system', 'role_delegation', 'user'];
 
+  /**
+   * The delegatable roles service.
+   *
+   * @var \Drupal\role_delegation\DelegatableRolesInterface
+   */
   protected DelegatableRolesInterface $delegatableRoles;
 
   /**

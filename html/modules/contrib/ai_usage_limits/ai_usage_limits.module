@@ -1,0 +1,43 @@
+<?php
+
+/**
+ * @file
+ * The AI usage limits module.
+ */
+
+use Drupal\Core\Datetime\DrupalDateTime;
+
+/**
+ * Implements hook_cron().
+ */
+function ai_usage_limits_cron() {
+  // Get current usage.
+  $current_usage = \Drupal::state()->get('ai_usage_limits');
+
+  // Get retention days.
+  $retention_days = \Drupal::config('ai_usage_limits.settings')->get('retention_days') ?? 30;
+
+  // Get current time.
+  $current_time = new DrupalDateTime();
+
+  $resave_state = FALSE;
+  foreach ($current_usage as $provider_id => $usage) {
+    // When there is no start date set yet, don't do anything.
+    if (empty($usage['retention_start_date'])) {
+      continue;
+    }
+
+    // Get time limit.
+    $date = DrupalDateTime::createFromTimestamp($usage['retention_start_date']);
+    $time_limit = $date->modify('+' . $retention_days . 'days');
+
+    if ($time_limit->getTimestamp() < $current_time->getTimestamp()) {
+      $current_usage[$provider_id] = [];
+      $resave_state = TRUE;
+    }
+  }
+
+  if ($resave_state) {
+    \Drupal::state()->set('ai_usage_limits', $current_usage);
+  }
+}

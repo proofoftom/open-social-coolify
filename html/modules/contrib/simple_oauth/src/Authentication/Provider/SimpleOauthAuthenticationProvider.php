@@ -4,7 +4,10 @@ namespace Drupal\simple_oauth\Authentication\Provider;
 
 use Drupal\Core\Authentication\AuthenticationProviderInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Session\PermissionCheckerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\Path\PathValidatorInterface;
+use Drupal\Core\Routing\RouteProviderInterface;
 use Drupal\simple_oauth\Authentication\TokenAuthUser;
 use Drupal\simple_oauth\Exception\OAuthUnauthorizedHttpException;
 use Drupal\simple_oauth\PageCache\SimpleOauthRequestPolicyInterface;
@@ -13,9 +16,21 @@ use League\OAuth2\Server\Exception\OAuthServerException;
 use Symfony\Bridge\PsrHttpMessage\HttpFoundationFactoryInterface;
 use Symfony\Bridge\PsrHttpMessage\HttpMessageFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * OAuth2 authentication provider.
+ *
+ * Routes can opt out of OAuth authentication by setting the '_oauth_skip_auth'
+ * option to TRUE in their route definition:
+ *
+ * @code
+ * example.route:
+ *   path: '/example'
+ *   # ...
+ *   options:
+ *     _oauth_skip_auth: TRUE
+ * @endcode
  *
  * @internal
  */
@@ -24,76 +39,75 @@ class SimpleOauthAuthenticationProvider implements AuthenticationProviderInterfa
   use StringTranslationTrait;
 
   /**
-   * The resource server factory.
-   *
-   * @var \Drupal\simple_oauth\Server\ResourceServerFactoryInterface
-   */
-  protected ResourceServerFactoryInterface $resourceServerFactory;
-
-  /**
-   * The entity type manager.
-   *
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
-   */
-  protected EntityTypeManagerInterface $entityTypeManager;
-
-  /**
-   * The request policy.
-   *
-   * @var \Drupal\simple_oauth\PageCache\SimpleOauthRequestPolicyInterface
-   */
-  protected SimpleOauthRequestPolicyInterface $oauthPageCacheRequestPolicy;
-
-  /**
-   * The HTTP message factory.
-   *
-   * @var \Symfony\Bridge\PsrHttpMessage\HttpMessageFactoryInterface
-   */
-  protected HttpMessageFactoryInterface $httpMessageFactory;
-
-  /**
-   * The HTTP foundation factory.
-   *
-   * @var \Symfony\Bridge\PsrHttpMessage\HttpFoundationFactoryInterface
-   */
-  protected HttpFoundationFactoryInterface $httpFoundationFactory;
-
-  /**
    * Constructs an HTTP basic authentication provider object.
    *
-   * @param \Drupal\simple_oauth\Server\ResourceServerFactoryInterface $resource_server_factory
+   * @param \Drupal\simple_oauth\Server\ResourceServerFactoryInterface $resourceServerFactory
    *   The resource server factory.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager service.
-   * @param \Drupal\simple_oauth\PageCache\SimpleOauthRequestPolicyInterface $page_cache_request_policy
+   * @param \Drupal\simple_oauth\PageCache\SimpleOauthRequestPolicyInterface $oauthPageCacheRequestPolicy
    *   The page cache request policy.
-   * @param \Symfony\Bridge\PsrHttpMessage\HttpMessageFactoryInterface $http_message_factory
+   * @param \Symfony\Bridge\PsrHttpMessage\HttpMessageFactoryInterface $httpMessageFactory
    *   The HTTP message factory.
-   * @param \Symfony\Bridge\PsrHttpMessage\HttpFoundationFactoryInterface $http_foundation_factory
+   * @param \Symfony\Bridge\PsrHttpMessage\HttpFoundationFactoryInterface $httpFoundationFactory
    *   The HTTP foundation factory.
+   * @param \Drupal\Core\Path\PathValidatorInterface $pathValidator
+   *   The path validator service.
+   * @param \Drupal\Core\Routing\RouteProviderInterface $routeProvider
+   *   The route provider service.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
+   *   The request stack.
+   * @param \Drupal\Core\Session\PermissionCheckerInterface $permissionChecker
+   *   The permission checker service.
    */
   public function __construct(
-    ResourceServerFactoryInterface $resource_server_factory,
-    EntityTypeManagerInterface $entity_type_manager,
-    SimpleOauthRequestPolicyInterface $page_cache_request_policy,
-    HttpMessageFactoryInterface $http_message_factory,
-    HttpFoundationFactoryInterface $http_foundation_factory,
-  ) {
-    $this->resourceServerFactory = $resource_server_factory;
-    $this->entityTypeManager = $entity_type_manager;
-    $this->oauthPageCacheRequestPolicy = $page_cache_request_policy;
-    $this->httpMessageFactory = $http_message_factory;
-    $this->httpFoundationFactory = $http_foundation_factory;
-  }
+    protected readonly ResourceServerFactoryInterface $resourceServerFactory,
+    protected readonly EntityTypeManagerInterface $entityTypeManager,
+    protected readonly SimpleOauthRequestPolicyInterface $oauthPageCacheRequestPolicy,
+    protected readonly HttpMessageFactoryInterface $httpMessageFactory,
+    protected readonly HttpFoundationFactoryInterface $httpFoundationFactory,
+    protected readonly PathValidatorInterface $pathValidator,
+    protected readonly RouteProviderInterface $routeProvider,
+    protected readonly RequestStack $requestStack,
+    protected readonly PermissionCheckerInterface $permissionChecker,
+  ) {}
 
   /**
    * {@inheritdoc}
    */
   public function applies(Request $request) {
-    // The request policy service won't be used in case of non GET or HEAD
-    // methods, so we have to explicitly call it.
-    /* @see \Drupal\Core\PageCache\RequestPolicy\CommandLineOrUnsafeMethod::check() */
-    return $this->oauthPageCacheRequestPolicy->isOauth2Request($request);
+    // Check for OAuth2 request FIRST to avoid unnecessary route lookups. The
+    // request policy service won't be used in case of non GET or HEAD methods,
+    // so we have to explicitly call it.
+    // @see \Drupal\Core\PageCache\RequestPolicy\CommandLineOrUnsafeMethod::check()
+    $is_oauth2_request = $this->oauthPageCacheRequestPolicy->isOauth2Request($request);
+
+    // If this is not an OAuth2 request, return FALSE immediately to avoid
+    // interfering with other authentication providers (e.g., cookie auth).
+    if (!$is_oauth2_request) {
+      return FALSE;
+    }
+
+    // Only check route options if this IS an OAuth2 request. Retrieve the route
+    // name and fetch the route name without access checks.
+    try {
+      $url_object = $this->pathValidator->getUrlIfValidWithoutAccessCheck($request->getPathInfo());
+    }
+    catch (\Exception) {
+      // The getUrlIfValidWithoutAccessCheck method can throw an exception when
+      // using a custom REST resource with limited formats.
+      $url_object = NULL;
+    }
+    if ($url_object) {
+      $route_name = $url_object->getRouteName();
+      $route = $this->routeProvider->getRouteByName($route_name);
+      // Check if the current route has opted out of OAuth authentication.
+      if ($route && $route->getOption('_oauth_skip_auth')) {
+        return FALSE;
+      }
+    }
+
+    return TRUE;
   }
 
   /**
@@ -129,8 +143,12 @@ class SimpleOauthAuthenticationProvider implements AuthenticationProviderInterfa
       'value' => $auth_request->get('oauth_access_token_id'),
     ]);
     $token = reset($tokens);
-
-    $account = new TokenAuthUser($token);
+    $account = new TokenAuthUser(
+      $this->permissionChecker,
+      $token,
+      $this->httpMessageFactory,
+      $this->requestStack
+    );
 
     // Revoke the access token for the blocked user.
     if ($account->isBlocked() && $account->isAuthenticated()) {

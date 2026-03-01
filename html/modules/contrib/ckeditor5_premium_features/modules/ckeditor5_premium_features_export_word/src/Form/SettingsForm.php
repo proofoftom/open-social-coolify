@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -13,6 +13,7 @@ use Drupal\ckeditor5_premium_features\Form\BaseExportSettingsForm;
 use Drupal\ckeditor5_premium_features\Utility\FormElement;
 use Drupal\Core\Config\Config;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\file\Entity\File;
 
 /**
  * Provides the configuration form of the "Export to Word" feature.
@@ -135,6 +136,44 @@ class SettingsForm extends BaseExportSettingsForm {
       FormElement::headingFooter($options, $type, $config->get("$options_key.$type") ?? [], $type_count);
     }
 
+    $form['converter_options']['watermark'] = [
+      '#type' => 'details',
+      '#title' => t('Watermark'),
+      '#open' => FALSE,
+    ];
+    $form['converter_options']['watermark']['image_url'] = [
+      '#type' => 'textfield',
+      '#title' => t('Watermark Image URL'),
+      '#default_value' => $config->get($options_key . '.watermark.image_url'),
+      '#description' => t('URL of the watermark image to be applied to the exported Word document.'),
+    ];
+    $form['converter_options']['watermark']['image'] = [
+      '#type' => 'managed_file',
+      '#title' => t('Upload Watermark Image'),
+      '#upload_location' => 'public://ckeditor5/',
+      '#default_value' => $config->get($options_key . '.watermark.image') ? $config->get($options_key . '.watermark.image') : NULL,
+      '#description' => t('Alternatively, upload an image to be used as a watermark. This will override the URL above if both are provided.'),
+    ];
+    $form['converter_options']['watermark']['width'] = [
+      '#type' => 'textfield',
+      '#title' => t('Width'),
+      '#default_value' => $config->get($options_key . '.watermark.width'),
+      '#description' => t('Width of the watermark image. Supports <i>px</i>, <i>cm</i>, <i>mm</i> and <i>in</i> units.<br /> The minimal values are: 96px, 2.54cm, 25.4mm and 1in. Lower values will result with a conversion error.'),
+    ];
+    $form['converter_options']['watermark']['height'] = [
+      '#type' => 'textfield',
+      '#title' => t('Height'),
+      '#default_value' => $config->get($options_key . '.watermark.height'),
+      '#description' => t('Width of the watermark image. Supports <i>px</i>, <i>cm</i>, <i>mm</i> and <i>in</i> units.<br /> The minimal values are: 96px, 2.54cm, 25.4mm and 1in. Lower values will result with a conversion error.'),
+    ];
+    $form['converter_options']['watermark']['washout'] = [
+      '#type' => 'checkbox',
+      '#title' => t('Washout'),
+      '#default_value' => $config->get($options_key . '.watermark.washout'),
+      '#description' => t('If checked, the watermark will be displayed with reduced opacity.'),
+    ];
+
+
     return $form;
   }
 
@@ -145,6 +184,20 @@ class SettingsForm extends BaseExportSettingsForm {
     if (!ckeditor5_premium_features_check_dependency_class('Firebase\JWT\JWT')) {
       $message = t('Export to Word plugin will work in license key authentication mode because its required dependency <code>firebase/php-jwt</code> is not installed. This may result with limited functionality.');
       ckeditor5_premium_features_display_missing_dependency_warning($message);
+    }
+  }
+
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
+    parent::submitForm($form, $form_state);
+
+    $converterOptions = $form_state->getValue('converter_options');
+    if (isset($converterOptions['watermark']['image']) && is_array($converterOptions['watermark']['image']) && isset($converterOptions['watermark']['image'][0])) {
+      $fileId = $converterOptions['watermark']['image'][0];
+      $file = File::load($fileId);
+      if ($file) {
+        $file->setPermanent();
+        $file->save();
+      }
     }
   }
 

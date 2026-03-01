@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Drupal\Tests\role_delegation\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
-use Drupal\role_delegation\Access\RoleDelegationAccessCheck;
 use Drupal\Tests\user\Traits\UserCreationTrait;
+use Drupal\role_delegation\Access\RoleDelegationAccessCheck;
 
 /**
  * @coversDefaultClass \Drupal\role_delegation\Access\RoleDelegationAccessCheck
@@ -22,6 +22,11 @@ class AccessTest extends KernelTestBase {
    */
   protected static $modules = ['system', 'role_delegation', 'user'];
 
+  /**
+   * The access checker service.
+   *
+   * @var \Drupal\role_delegation\Access\RoleDelegationAccessCheck
+   */
   protected RoleDelegationAccessCheck $accessChecker;
 
   /**

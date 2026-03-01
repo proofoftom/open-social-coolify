@@ -97,6 +97,15 @@ grant_type.settings:
       type: text
       label: 'Description'
 
+field.field_settings.oauth2_scope_reference:
+  type: mapping
+  label: 'OAuth2 scope reference settings'
+  mapping:
+    filter_grant_type:
+      type: string
+      label: 'Filter by grant type'
+      description: 'Optionally filter available scopes to only those enabled for a specific grant type.'
+
 simple_oauth.settings:
   type: config_object
   label: 'Simple OAuth Settings'

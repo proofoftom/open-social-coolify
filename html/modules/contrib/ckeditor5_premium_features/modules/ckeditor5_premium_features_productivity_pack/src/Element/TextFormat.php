@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Copyright (c) 2003-2025, CKSource Holding sp. z o.o. All rights reserved.
+ * Copyright (c) 2003-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see https://ckeditor.com/legal/ckeditor-oss-license
  */
 
@@ -46,7 +46,7 @@ class TextFormat implements Ckeditor5TextFormatBaseInterface {
       '#type' => 'html_tag',
       '#tag' => 'div',
       '#attributes' => [
-        'class' => ['document-outline-container', 'collapsed', 'hidden'],
+        'class' => ['ck', 'document-outline-container', 'collapsed', 'hidden'],
         'id' => [
           $element["#attributes"]["data-drupal-selector"] . '-value-ck-document-outline',
         ],

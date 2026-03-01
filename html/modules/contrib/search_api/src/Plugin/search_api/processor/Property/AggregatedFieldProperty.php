@@ -217,7 +217,7 @@ class AggregatedFieldProperty extends ConfigurablePropertyBase {
    */
   protected function getDatasourceLabelPrefixes(IndexInterface $index) {
     $prefixes = [
-      NULL => $this->t('General') . ' » ',
+      '' => $this->t('General') . ' » ',
     ];
 
     foreach ($index->getDatasources() as $datasource_id => $datasource) {

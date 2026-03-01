@@ -391,6 +391,130 @@ class AuthCodeFunctionalTest extends TokenBearerFunctionalTestBase {
   }
 
   /**
+   * Test authorization code grant with default scopes.
+   *
+   * Tests when no scope parameter is provided.
+   */
+  public function testAuthCodeWithDefaultScopes(): void {
+    // Create a scope with permission-based granularity for testing.
+    $defaultScope = Oauth2Scope::create([
+      'name' => 'test:default',
+      'description' => 'Test default scope',
+      'grant_types' => [
+        'authorization_code' => [
+          'status' => TRUE,
+        ],
+      ],
+      'umbrella' => FALSE,
+      'granularity_id' => Oauth2ScopeInterface::GRANULARITY_PERMISSION,
+      'granularity_configuration' => [
+        'permission' => 'access content',
+      ],
+    ]);
+    $defaultScope->save();
+
+    // Configure default scopes on the consumer for authorization_code grant.
+    $this->client->set('authorization_code_scopes', [$defaultScope->id()]);
+    $this->client->save();
+
+    $valid_params = [
+      'response_type' => 'code',
+      'client_id' => $this->client->getClientId(),
+      'redirect_uri' => $this->redirectUri,
+    ];
+
+    // Log in the user.
+    $this->drupalLogin($this->user);
+
+    // Request authorization without providing a scope parameter.
+    $this->drupalGet($this->authorizeUrl->toString(), [
+      'query' => $valid_params,
+    ]);
+    $this->assertGrantForm();
+
+    // Grant access and obtain the authorization code.
+    $this->submitForm([], 'Allow');
+    $code = $this->getAndValidateCodeFromResponse();
+
+    // Exchange authorization code for access token.
+    $response = $this->postGrantedCodeWithScopes($code, '');
+    $parsed_response = $this->assertValidTokenResponse($response, TRUE);
+
+    // Verify the access token grants access to protected resources.
+    $this->assertAccessTokenOnResource($parsed_response['access_token']);
+  }
+
+  /**
+   * Test authorization fails when no scopes provided.
+   *
+   * Tests when no scope parameter or default scopes are provided.
+   */
+  public function testAuthCodeRequiresScopeOrDefaults(): void {
+    // Ensure no default scopes are configured on the consumer.
+    $this->client->set('authorization_code_scopes', []);
+    $this->client->save();
+
+    $valid_params = [
+      'response_type' => 'code',
+      'client_id' => $this->client->getClientId(),
+      'redirect_uri' => $this->redirectUri,
+    ];
+
+    // Log in the user.
+    $this->drupalLogin($this->user);
+
+    // Request authorization without providing scope parameter.
+    $this->drupalGet($this->authorizeUrl->toString(), [
+      'query' => $valid_params,
+    ]);
+
+    // Verify the request fails with a 400 Bad Request error.
+    // The OAuth server requires at least one scope to be specified either
+    // via the request parameter or as a default scope on the consumer.
+    $this->assertSession()->statusCodeEquals(400);
+  }
+
+  /**
+   * Test that scope fields filter by grant type.
+   */
+  public function testScopeFieldFilteringByGrantType(): void {
+    // Create scopes with different grant type configurations.
+    $authCodeScope = Oauth2Scope::create([
+      'name' => 'test:auth_code_filter',
+      'grant_types' => [
+        'authorization_code' => ['status' => TRUE],
+        'client_credentials' => ['status' => FALSE],
+      ],
+      'granularity_id' => Oauth2ScopeInterface::GRANULARITY_PERMISSION,
+      'granularity_configuration' => ['permission' => 'access content'],
+    ]);
+    $authCodeScope->save();
+
+    $clientCredsScope = Oauth2Scope::create([
+      'name' => 'test:client_creds_filter',
+      'grant_types' => [
+        'authorization_code' => ['status' => FALSE],
+        'client_credentials' => ['status' => TRUE],
+      ],
+      'granularity_id' => Oauth2ScopeInterface::GRANULARITY_PERMISSION,
+      'granularity_configuration' => ['permission' => 'access content'],
+    ]);
+    $clientCredsScope->save();
+
+    // Test authorization_code_scopes field only shows auth code scopes.
+    $this->client->set('authorization_code_scopes', [$authCodeScope->id()]);
+    $auth_options = $this->client->get('authorization_code_scopes')->first()->getPossibleOptions();
+    $this->assertArrayHasKey($authCodeScope->id(), $auth_options);
+    $this->assertArrayNotHasKey($clientCredsScope->id(), $auth_options);
+
+    // Test scopes field only shows client credentials scopes.
+    $this->client->set('scopes', [$clientCredsScope->id()]);
+    $creds_options = $this->client->get('scopes')->first()->getPossibleOptions();
+    $this->assertArrayHasKey($clientCredsScope->id(), $creds_options);
+    $this->assertArrayNotHasKey($authCodeScope->id(), $creds_options);
+  }
+
+  /**
    * Test registration with one time login.
    */
   public function testRegistrationWithOneTimeLogin(): void {
@@ -437,6 +561,58 @@ class AuthCodeFunctionalTest extends TokenBearerFunctionalTestBase {
       'pass[pass2]' => $pass,
     ], 'Save');
     $this->assertGrantForm();
+  }
+
+  /**
+   * Test permission scope on custom role.
+   */
+  public function testPermissionScopeOnCustomRole(): void {
+    // Revoke 'access content' on the authenticated role and grant it on the
+    // custom role.
+    $auth_role = Role::load(RoleInterface::AUTHENTICATED_ID);
+    $auth_role->revokePermission('access content');
+    $auth_role->save();
+    $role_id = $this->createRole(['access content'], 'custom_role', 'Custom role');
+
+    $account = $this->createUser([], NULL, FALSE, ['roles' => [$role_id]]);
+    $this->drupalLogin($account);
+
+    $this->client->set('automatic_authorization', TRUE);
+    $this->client->save();
+
+    $valid_params = [
+      'response_type' => 'code',
+      'client_id' => $this->client->getClientId(),
+      'redirect_uri' => $this->redirectUri,
+      'scope' => $this->scope,
+    ];
+
+    // Request authorization without providing scope parameter.
+    $this->drupalGet($this->authorizeUrl->toString(), [
+      'query' => $valid_params,
+    ]);
+
+    // Store the code for the second part of the flow.
+    $code = $this->getAndValidateCodeFromResponse();
+
+    // Send the code to get the access token, regardless of the scopes, since
+    // the consumer has automatic authorization enabled.
+    $response = $this->postGrantedCodeWithScopes(
+      $code,
+      $this->scope . ' ' . $this->extraScope->id()
+    );
+    $parsed_response = $this->assertValidTokenResponse($response, TRUE);
+
+    // Both roles are assigned on the user, we expect access.
+    $this->assertAccessTokenOnResource($parsed_response['access_token']);
+
+    // Revoke permission on the custom role.
+    $custom_role = Role::load($role_id);
+    $custom_role->revokePermission('access content');
+    $custom_role->save();
+
+    // Assert again.
+    $this->assertAccessTokenOnResource($parsed_response['access_token'], 403);
   }
 
   /**

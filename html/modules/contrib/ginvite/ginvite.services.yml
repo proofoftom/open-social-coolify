@@ -3,11 +3,19 @@ services:
     class: Drupal\ginvite\EventSubscriber\GinviteSubscriber
     tags:
       - {name: event_subscriber}
-    arguments: ['@ginvite.invitation_loader', '@current_user', '@messenger', '@logger.factory', '@config.factory', '@entity_type.manager']
+    arguments: ['@ginvite.invitation_loader', '@messenger', '@logger.factory', '@config.factory', '@ginvite.group_invitation_manager' ]
 
   ginvite.invitation_loader:
     class: 'Drupal\ginvite\GroupInvitationLoader'
     arguments: ['@entity_type.manager', '@current_user']
+
+  ginvite.group_invitation_manager:
+    class: 'Drupal\ginvite\GroupInvitationManager'
+    arguments: [ '@entity_type.manager' ]
+
+  ginvite.invitation_handler:
+    class: 'Drupal\ginvite\GroupInvitationHandler'
+    arguments: [ '@plugin.manager.mail', '@messenger', '@language_manager' ]
 
   # Specific group relation handlers.
   group.relation_handler.operation_provider.group_invitation:
@@ -27,5 +35,5 @@ services:
 
   group.relation_handler.access_control.group_invitation:
     class: 'Drupal\ginvite\Plugin\Group\RelationHandler\GroupInvitationAccessControl'
-    arguments: [ '@group.relation_handler.access_control' ]
+    arguments: [ '@group.relation_handler.access_control', '@group_relation_type.manager' ]
     shared: false
